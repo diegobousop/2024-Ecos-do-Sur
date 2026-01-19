@@ -56,6 +56,23 @@ defmodule Chatbot.Worker do
     )
   end
 
+
+  # The worker is called by the leader cause a new message was received (native)
+  @impl GenServer
+  def handle_call({:native, :answer, key, user, lang}, {leader_pid, _}, state) do
+    Gettext.put_locale(lang)
+    find_conversation_and_start(user,
+      fn ->
+        # Native: Salta selección de idioma y va directo a INITIAL_Q1
+        do_start_graph_directly(leader_pid, key, user, lang, %{state | is_active: true})
+      end,
+      fn value ->
+        new_state = reset_timer(do_ask_for_permission_late(%{value | is_active: true}))
+        {:reply, user, new_state}
+      end
+    )
+  end
+
   # The worker is called by the leader cause a new query was received
   @impl GenServer
   def handle_call({:answer, key, user, query, lang}, {leader_pid, _}, state) do
@@ -65,6 +82,31 @@ defmodule Chatbot.Worker do
     find_conversation_and_start(user,
       fn ->
         do_ask_for_language_preferences(leader_pid, key, user, gettext("La conversación anterior ya ha sido borrada"), %{state | is_active: true})
+      end,
+      fn value ->
+        case query["data"] do
+          "yes" ->
+            TelegramWrapper.delete_message(key, user, query["message"]["message_id"])
+            do_delegate(value, :with_information)
+            {:stop, :silence, :worker_dead, %{value | is_active: true}}
+          "no" ->
+            TelegramWrapper.delete_message(key, user, query["message"]["message_id"])
+            do_delegate(value, :without_information)
+            {:stop, :silence, :worker_dead, %{value | is_active: true}}
+        end
+      end
+    )
+  end
+
+    # The worker is called by the leader cause a new query was received
+  @impl GenServer
+  def handle_call({:native, :answer, key, user, query, lang}, {leader_pid, _}, state) do
+    Logger.info("Call")
+    Gettext.put_locale(lang)
+    TelegramWrapper.answer_callback_query(key, query["id"])
+    find_conversation_and_start(user,
+      fn ->
+        do_start_graph_directly(leader_pid, key, user, lang, %{state | is_active: true})
       end,
       fn value ->
         case query["data"] do
@@ -283,5 +325,13 @@ defmodule Chatbot.Worker do
 
   defp cancel_existing_timer(nil), do: :ok
   defp cancel_existing_timer(ref), do: :timer.cancel(ref)
+
+  # Inicia el grafo directamente sin pedir idioma (para native)
+  defp do_start_graph_directly(leader_pid, key, user, lang, state) do
+    Gettext.put_locale(lang)
+    new_state = reset_timer(%{state | leader: leader_pid, key: key, user: user, lang: lang})
+    new_graph_state = Manager.resolve(new_state.graph_state, user, key, lang, nil)
+    {:reply, user, %{new_state | graph_state: new_graph_state}}
+  end
 
 end

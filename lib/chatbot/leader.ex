@@ -29,7 +29,8 @@ defmodule Chatbot.Leader do
           last_seen: -2,
           workers_data: []
         }
-        next_loop()
+        schedule_http_check()
+        schedule_telegram_check()
         {:ok, state}
       # Failure
       {:error, reason} ->
@@ -38,16 +39,59 @@ defmodule Chatbot.Leader do
     end
   end
 
-  # Handles the :check message
   @impl GenServer
-  def handle_info(:check, %{bot_key: key, last_seen: last_seen, workers_data: _} = state) do
+  def handle_info(:check_http, state) do
+    http_updates = Chatbot.HTTPBuffer.get_updates()
+    state = do_handle_http_updates(http_updates, state)
+    schedule_http_check()
+    {:noreply, state}
+  end
+
+  @impl GenServer
+  def handle_info(:check_telegram, %{bot_key: key, last_seen: last_seen} = state) do
     state =
       key
-      |> Telegram.Api.request("getUpdates", offset: last_seen + 1, timeout: 30)
+      |> Telegram.Api.request("getUpdates", offset: last_seen + 1, timeout: 0)
       |> do_handle_get_updates(state)
-    # Re-trigger the looping behavior
-    next_loop()
+    schedule_telegram_check()
     {:noreply, state}
+  end
+
+  defp do_handle_http_updates([], state), do: state
+  defp do_handle_http_updates(updates, state) do
+    updated_workers_data = Enum.reduce(updates, state.workers_data, fn request, wd ->
+      Chatbot.HTTPBuffer.register(request.user_id, request.pid)
+      do_handle_one_http_update(request, state.bot_key, wd)
+    end)
+    %{state | workers_data: updated_workers_data}
+  end
+
+  defp do_handle_one_http_update(%{type: :message} = request, key, workers_data) do
+    update = %{
+      "message" => %{
+        "chat" => %{"id" => request.user_id},
+        "from" => %{"language_code" => request.language_code},
+        "text" => request.message,
+        "message_id" => "http_msg"
+      },
+      "update_id" => 0
+    }
+    stored_worker = Enum.find(workers_data, fn %{user_id: user_id} -> user_id == request.user_id end)
+    do_resolve_update(:native, stored_worker, update, key, workers_data)
+  end
+
+  defp do_handle_one_http_update(%{type: :callback} = request, key, workers_data) do
+    update = %{
+      "callback_query" => %{
+        "id" => "http_callback",
+        "from" => %{"id" => request.user_id, "language_code" => request.language_code},
+        "data" => request.data,
+        "message" => %{"message_id" => "http_msg"}
+      },
+      "update_id" => 0
+    }
+    stored_worker = Enum.find(workers_data, fn %{user_id: user_id} -> user_id == request.user_id end)
+    do_resolve_update(:native, stored_worker, update, key, workers_data)
   end
 
   @impl GenServer
@@ -167,9 +211,36 @@ defmodule Chatbot.Leader do
     workers_data
   end
 
-  # Schedules the next check for updates after a certain delay
-  defp next_loop do
-    Process.send_after(self(), :check, 1000)
+  # Resolves one update
+  defp do_resolve_update(:native, nil, %{"message" => msg, "update_id" => _}, key, workers_data) do
+    worker_pid = do_get_free_worker()
+    reply = GenServer.call(worker_pid, {:native, :answer, key, msg["chat"]["id"], msg["from"]["language_code"]})
+    [%{pid: worker_pid, user_id: reply} | workers_data]
+  end
+
+  defp do_resolve_update(:native, nil, %{"callback_query" => query, "update_id" => _}, key, workers_data) do
+    worker_pid = do_get_free_worker()
+      case GenServer.call(worker_pid, {:native, :answer, key, query["from"]["id"], query, query["from"]["language_code"]}) do
+        :worker_dead ->
+          workers_data
+        user_id ->
+          [%{pid: worker_pid, user_id: user_id} | workers_data]
+      end
+  end
+
+  defp do_resolve_update(:native, worker, update, _, workers_data) do
+    GenServer.cast(worker[:pid], {:answer, update})
+    workers_data
+  end
+
+
+
+  defp schedule_http_check do
+    Process.send_after(self(), :check_http, 100)
+  end
+
+  defp schedule_telegram_check do
+    Process.send_after(self(), :check_telegram, 1000)
   end
 
   defp do_get_free_worker() do

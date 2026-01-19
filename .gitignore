@@ -1,6 +1,10 @@
 .DS_Store
 _build
 deps
+.elixir_ls/
+.fetch/
+cover/
 mix.lock
 .vscode
 erl_crash.dump
+
