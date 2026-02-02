@@ -1,4 +1,4 @@
-defmodule Http.JwtAuthPlug do
+defmodule Http.Authentication.JwtAuthPlug do
   import Plug.Conn
   require Logger
 
@@ -9,7 +9,7 @@ defmodule Http.JwtAuthPlug do
 
     if conn.request_path in protected_paths do
       with {:ok, token} <- bearer_token(conn),
-           {:ok, claims} <- Http.JwtAuthToken.verify(token) do
+           {:ok, claims} <- Http.Authentication.JwtAuthToken.verify(token) do
         assign(conn, :jwt_claims, claims)
       else
         {:error, :missing_token} ->

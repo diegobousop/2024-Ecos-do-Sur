@@ -1,4 +1,4 @@
-defmodule Chatbot.User do
+defmodule User do
   @derive [Poison.Encoder]
   defstruct [:_id, :username, :email, :password_hash, :language, :gender, :role, :type, :created_at]
 
@@ -32,7 +32,10 @@ defmodule Chatbot.User do
   end
 
   def id_for_username(username) when is_binary(username) do
-    "org.couchdb.user:#{normalize_username(username)}"
+      uuid = :crypto.strong_rand_bytes(16)
+    |> Base.encode16(case: :lower)
+
+    "user:#{uuid}"
   end
 
   def hash_password(password) when is_binary(password) do

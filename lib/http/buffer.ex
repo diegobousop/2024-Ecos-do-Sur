@@ -1,4 +1,4 @@
-defmodule Chatbot.HTTPBuffer do
+defmodule Http.Buffer do
   use GenServer
 
   def start_link(_) do

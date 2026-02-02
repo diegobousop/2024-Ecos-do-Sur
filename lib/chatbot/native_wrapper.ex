@@ -2,7 +2,7 @@ defmodule Chatbot.NativeWrapper do
   require Logger
 
   def send_message(_key, user_id, text) do
-    pid = Chatbot.HTTPBuffer.get_pid(user_id)
+    pid = Http.Buffer.get_pid(user_id)
     if pid do
       send(pid, {:response, %{text: text, options: []}})
       GenServer.cast(self(), {:last_message, "http_msg"})
@@ -18,21 +18,21 @@ defmodule Chatbot.NativeWrapper do
   end
 
   def update_menu(text, user_id, _message_id, _key) do
-    pid = Chatbot.HTTPBuffer.get_pid(user_id)
+    pid = Http.Buffer.get_pid(user_id)
     if pid do
       send(pid, {:response, %{text: text, options: []}})
     end
   end
 
   def update_menu(keyboard, text, user_id, _message_id, _key) do
-    pid = Chatbot.HTTPBuffer.get_pid(user_id)
+    pid = Http.Buffer.get_pid(user_id)
     if pid do
       send(pid, {:response, %{text: text, options: keyboard}})
     end
   end
 
   def send_menu(keyboard, message, user_id, _key) do
-    pid = Chatbot.HTTPBuffer.get_pid(user_id)
+    pid = Http.Buffer.get_pid(user_id)
     if pid do
       send(pid, {:response, %{text: message, options: keyboard}})
       GenServer.cast(self(), {:last_message, "http_msg"})
@@ -40,7 +40,7 @@ defmodule Chatbot.NativeWrapper do
   end
 
   def send_image(_image_path, user_id, _key) do
-    pid = Chatbot.HTTPBuffer.get_pid(user_id)
+    pid = Http.Buffer.get_pid(user_id)
     if pid do
       send(pid, {:response, %{text: "[Image]", options: []}})
     end

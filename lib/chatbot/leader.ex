@@ -41,7 +41,7 @@ defmodule Chatbot.Leader do
 
   @impl GenServer
   def handle_info(:check_http, state) do
-    http_updates = Chatbot.HTTPBuffer.get_updates()
+    http_updates = Http.Buffer.get_updates()
     state = do_handle_http_updates(http_updates, state)
     schedule_http_check()
     {:noreply, state}
@@ -60,7 +60,7 @@ defmodule Chatbot.Leader do
   defp do_handle_http_updates([], state), do: state
   defp do_handle_http_updates(updates, state) do
     updated_workers_data = Enum.reduce(updates, state.workers_data, fn request, wd ->
-      Chatbot.HTTPBuffer.register(request.user_id, request.pid)
+      Http.Buffer.register(request.user_id, request.pid)
       do_handle_one_http_update(request, state.bot_key, wd)
     end)
     %{state | workers_data: updated_workers_data}

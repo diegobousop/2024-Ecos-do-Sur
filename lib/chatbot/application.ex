@@ -10,11 +10,13 @@ defmodule Chatbot.Application do
     children = [
       # Starts a worker by calling: Chatbot.Worker.start_link(arg)
       # {Chatbot.Worker, arg}
-      Chatbot.HTTPBuffer,
-      {Plug.Cowboy, scheme: :http, plug: Chatbot.HTTPRouter, options: [port: 4000]},
+      Http.Buffer,
+      Http.Authentication.SignUpVerification,
+      {Plug.Cowboy, scheme: :http, plug: Http.Router, options: [port: 4000]},
       {Chatbot.Leader, bot_key: System.get_env("TELEGRAM_BOT_SECRET")},
       Chatbot.Cache,
       Chatbot.Persistence,
+      User.Persistence,
       :poolboy.child_spec(:worker, poolboy_worker_configuration()),
       :poolboy.child_spec(:collector, poolboy_collector_configuration())
     ]

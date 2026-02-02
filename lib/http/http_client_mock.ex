@@ -5,6 +5,17 @@ defmodule Http.HttpClientMock do
   def post(_, nil, _) do
   end
 
+  def post(_, %{selector: %{email: email}}, _) when is_binary(email) do
+    docs =
+      if String.contains?(email, "exists") do
+        [%{"_id" => User.id_for_username("exists"), "username" => "exists", "email" => email}]
+      else
+        []
+      end
+
+    {:ok, %HTTPoison.Response{status_code: 200, body: Poison.encode!(%{docs: docs})}}
+  end
+
   def post(_, body, _) do
     cond do
       is_map(body) and Map.has_key?(body, :age) ->
@@ -32,7 +43,7 @@ defmodule Http.HttpClientMock do
           "_id" => "org.couchdb.user:validuser",
           "username" => "validuser",
           "email" => "valid@example.com",
-          "password_hash" => Chatbot.User.hash_password("secret"),
+          "password_hash" => User.hash_password("secret"),
           "full_name" => "Valid User",
           "role" => "user",
           "type" => "user",

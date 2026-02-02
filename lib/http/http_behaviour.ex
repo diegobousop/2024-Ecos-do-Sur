@@ -5,7 +5,7 @@ defmodule Http.HttpBehaviour do
   | %{required(binary()) => binary()}
   | any()
 
-  @type body :: Chatbot.DbDataScheme.t() | Chatbot.User.t() | map() | nil
+  @type body :: Chatbot.DbDataScheme.t() | User.t() | map() | nil
 
   @callback post(url :: binary(), body :: body(), header :: headers()) ::
   {:ok, HTTPoison.Response.t() | HTTPoison.AsyncResponse.t() | HTTPoison.MaybeRedirect.t()}
