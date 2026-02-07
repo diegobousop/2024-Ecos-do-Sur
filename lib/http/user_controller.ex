@@ -697,6 +697,203 @@ defmodule Http.UserController do
     end
   end
 
+  @doc """
+  GET /api/user-stats?timeRange=7days|30days|365days
+  Obtiene estadísticas agregadas de todos los usuarios para el panel de analíticas.
+  """
+  def user_stats(conn) do
+    Logger.info("HTTP user stats request")
+
+    query_params = Plug.Conn.fetch_query_params(conn).query_params
+    user_id = Map.get(query_params, "userId")
+    time_range = Map.get(query_params, "timeRange", "7days")
+
+    # Validar time_range
+    valid_ranges = ["7days", "30days", "365days"]
+
+    cond do
+      not is_binary(user_id) or String.trim(user_id) == "" ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(400, Poison.encode!(%{error: "user_id_required"}))
+
+      not is_admin?(user_id) ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(403, Poison.encode!(%{error: "forbidden", message: "Admin access required"}))
+
+      time_range not in valid_ranges ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(400, Poison.encode!(%{error: "invalid_time_range", valid_values: valid_ranges}))
+
+      true ->
+        result =
+          try do
+            # Determinar número de días según el rango
+            days = case time_range do
+              "7days" -> 7
+              "30days" -> 30
+              "365days" -> 365
+              _ -> 7
+            end
+
+            # Obtener todos los usuarios
+            case GenServer.call(:UserPersistence, {:get_all_users, 1, 1000}, 30_000) do
+              {:ok, data} ->
+                users = data.users
+
+                # Calcular estadísticas agregadas
+                stats =
+                  Enum.reduce(users, %{total: 0, urgent: 0, info: 0, by_user: []}, fn user, acc ->
+                    username = user["username"]
+
+                    {num_urgent, num_info, num_total} =
+                      case get_user_chat_count_by_category(username) do
+                        {:ok, counts} -> counts
+                        _ -> {0, 0, 0}
+                      end
+
+                    user_stat = %{
+                      userId: username,
+                      count: num_total
+                    }
+
+                    %{
+                      total: acc.total + num_total,
+                      urgent: acc.urgent + num_urgent,
+                      info: acc.info + num_info,
+                      by_user: [user_stat | acc.by_user]
+                    }
+                  end)
+
+                # Top 5 usuarios más activos
+                top_users =
+                  stats.by_user
+                  |> Enum.filter(fn u -> u.count > 0 end)
+                  |> Enum.sort_by(fn u -> u.count end, :desc)
+                  |> Enum.take(5)
+
+                # Datos temporales separados por tipo (urgente e info)
+                # Obtener todas las conversaciones de todos los usuarios
+                all_conversations =
+                  Enum.flat_map(users, fn user ->
+                    username = user["username"]
+                    case GenServer.call(:Persistence, {:get_user_conversations, username}, 5_000) do
+                      {:ok, convs} when is_list(convs) -> convs
+                      _ -> []
+                    end
+                  end)
+
+                Logger.info("Total conversations found: #{length(all_conversations)}")
+
+                # Agrupar conversaciones por fecha y categoría
+                today = Date.utc_today()
+
+                daily_data =
+                  Enum.map((days - 1)..0, fn days_ago ->
+                    date = Date.add(today, -days_ago)
+
+                    # Filtrar conversaciones de este día
+                    convs_on_date = Enum.filter(all_conversations, fn conv ->
+                      created_at = Map.get(conv, "created_at")
+                      if is_binary(created_at) do
+                        case DateTime.from_iso8601(created_at) do
+                          {:ok, dt, _} ->
+                            conv_date = DateTime.to_date(dt)
+                            Date.compare(conv_date, date) == :eq
+                          _ -> false
+                        end
+                      else
+                        false
+                      end
+                    end)
+
+                    urgent_count = Enum.count(convs_on_date, fn c -> Map.get(c, "category") == "urgent" end)
+                    info_count = Enum.count(convs_on_date, fn c -> Map.get(c, "category") == "information" end)
+
+                    date_str = if days <= 31 do
+                      # Para 7 y 30 días: MM-DD
+                      "#{String.pad_leading(to_string(date.month), 2, "0")}-#{String.pad_leading(to_string(date.day), 2, "0")}"
+                    else
+                      # Para 365 días: solo mes
+                      "#{String.pad_leading(to_string(date.month), 2, "0")}"
+                    end
+
+                    %{
+                      date: date_str,
+                      urgent: urgent_count,
+                      info: info_count
+                    }
+                  end)
+
+                # Si es año, agrupar por mes
+                daily_data = if days > 31 do
+                  daily_data
+                  |> Enum.group_by(fn d -> d.date end)
+                  |> Enum.map(fn {date, items} ->
+                    %{
+                      date: date,
+                      urgent: Enum.sum(Enum.map(items, fn i -> i.urgent end)),
+                      info: Enum.sum(Enum.map(items, fn i -> i.info end))
+                    }
+                  end)
+                  |> Enum.sort_by(fn d -> d.date end)
+                else
+                  daily_data
+                end
+
+                response = %{
+                  totalConversations: stats.total,
+                  conversationsByType: %{
+                    urgent: stats.urgent,
+                    info: stats.info
+                  },
+                  conversationsByUser: top_users,
+                  dailyConversationsUrgent: Enum.map(daily_data, fn d -> %{date: d.date, count: d.urgent} end),
+                  dailyConversationsInfo: Enum.map(daily_data, fn d -> %{date: d.date, count: d.info} end),
+                  timeRange: time_range
+                }
+
+                {:ok, response}
+
+              error ->
+                error
+            end
+          catch
+            :exit, reason ->
+              Logger.error("user_stats exit: #{inspect(reason)}")
+              {:persistence_down, reason}
+          end
+
+        case result do
+          {:ok, response} ->
+            conn
+            |> put_resp_content_type("application/json")
+            |> send_resp(200, Poison.encode!(response))
+
+          {:persistence_down, _reason} ->
+            conn
+            |> put_resp_content_type("application/json")
+            |> send_resp(503, Poison.encode!(%{error: "persistence_unavailable"}))
+
+          {:error, message} ->
+            Logger.error("user_stats error: #{inspect(message)}")
+
+            conn
+            |> put_resp_content_type("application/json")
+            |> send_resp(500, Poison.encode!(%{error: "failed_to_fetch_stats"}))
+
+          other ->
+            Logger.error("user_stats unexpected result: #{inspect(other)}")
+
+            conn
+            |> put_resp_content_type("application/json")
+            |> send_resp(500, Poison.encode!(%{error: "unexpected_error"}))
+        end
+    end
+  end
+
   # Private helper functions
 
   defp is_admin?(user_id) when is_binary(user_id) do
@@ -740,6 +937,51 @@ defmodule Http.UserController do
       :exit, reason ->
         Logger.error("Exit when getting chat count for user #{user_id}: #{inspect(reason)}")
         {:error, :persistence_down}
+    end
+  end
+
+  @doc """
+  DELETE /api/user
+  Elimina la cuenta del usuario autenticado.
+  """
+  def delete_account(conn) do
+    Logger.info("HTTP delete account request")
+
+    # Obtener el user_id del contexto de autenticación
+    user_id = conn.assigns[:user_id]
+
+    if is_nil(user_id) do
+      conn
+      |> put_resp_content_type("application/json")
+      |> send_resp(401, Poison.encode!(%{error: "unauthorized"}))
+    else
+      try do
+        case GenServer.call(:UserPersistence, {:delete_user, user_id}) do
+          :ok ->
+            Logger.info("User #{user_id} deleted successfully")
+
+            conn
+            |> put_resp_content_type("application/json")
+            |> send_resp(200, Poison.encode!(%{status: "deleted"}))
+
+          :not_found ->
+            conn
+            |> put_resp_content_type("application/json")
+            |> send_resp(404, Poison.encode!(%{error: "user_not_found"}))
+
+          :error ->
+            conn
+            |> put_resp_content_type("application/json")
+            |> send_resp(500, Poison.encode!(%{error: "failed_to_delete_user"}))
+        end
+      catch
+        :exit, reason ->
+          Logger.error("delete_account failed calling :UserPersistence: #{inspect(reason)}")
+
+          conn
+          |> put_resp_content_type("application/json")
+          |> send_resp(503, Poison.encode!(%{error: "persistence_unavailable"}))
+      end
     end
   end
 end

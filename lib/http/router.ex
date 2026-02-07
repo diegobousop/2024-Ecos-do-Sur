@@ -8,7 +8,7 @@ defmodule Http.Router do
 
   plug Plug.Logger
   plug CORSPlug
-  plug Http.Authentication.JwtAuthPlug, protected_paths: ["/api/me", "/api/chat/save"]
+  plug Http.Authentication.JwtAuthPlug, protected_paths: ["/api/me", "/api/chat/save", "/api/user"]
   plug :match
   plug Plug.Parsers, parsers: [:json], pass: ["application/json"], json_decoder: Poison
   plug :dispatch
@@ -54,8 +54,8 @@ defmodule Http.Router do
     UserController.get_all_users(conn)
   end
 
-  get "/api/conversations/:user_id" do
-    ChatController.get_user_conversations(conn, user_id)
+  get "/api/user-stats" do
+    UserController.user_stats(conn)
   end
 
   post "/api/check-user" do
@@ -64,6 +64,11 @@ defmodule Http.Router do
 
   post "/api/update-username" do
     UserController.update_username(conn)
+  end
+
+  # Eliminar cuenta del usuario autenticado
+  delete "/api/user" do
+    UserController.delete_account(conn)
   end
 
   # Guardar metadata de un chat (sin mensajes)

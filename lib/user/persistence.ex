@@ -18,6 +18,7 @@ defmodule User.Persistence do
   def update_username(user_id, new_username), do: GenServer.call(:UserPersistence, {:update_username, user_id, new_username})
   def check_user_exists(identifier), do: GenServer.call(:UserPersistence, {:check_user_exists, identifier})
   def get_all_users(page, limit), do: GenServer.call(:UserPersistence, {:get_all_users, page, limit})
+  def delete_user(user_id), do: GenServer.call(:UserPersistence, {:delete_user, user_id})
 
   @impl true
   def init(http_client) do
@@ -52,6 +53,12 @@ defmodule User.Persistence do
   @impl true
   def handle_call({:get_all_users, page, limit}, _from, http_client) when is_integer(page) and is_integer(limit) do
     res = do_get_all_users(http_client, page, limit)
+    {:reply, res, http_client}
+  end
+
+  @impl true
+  def handle_call({:delete_user, user_id}, _from, http_client) when is_binary(user_id) do
+    res = do_delete_user(http_client, user_id)
     {:reply, res, http_client}
   end
 
@@ -100,6 +107,7 @@ defmodule User.Persistence do
     query = %{
       selector: %{
         "$or": [
+          %{type: "user", _id: identifier},
           %{type: "user", username: identifier},
           %{type: "user", email: identifier}
         ]
@@ -209,10 +217,16 @@ defmodule User.Persistence do
     http_client.put(url, body, headers ++ ["Content-Type": "application/json"])
   end
 
+  defp choose_action(http_client, :delete, url) do
+    headers = ["Authorization": "Basic " <> Base.encode64("#{@user}:#{@password}")]
+    http_client.delete(url, headers)
+  end
+
   defp send_request(http_client, :post, url), do: choose_action(http_client, :post, url, nil)
   defp send_request(http_client, :get, url), do: choose_action(http_client, :get, url)
   defp send_request(http_client, :post, url, body), do: choose_action(http_client, :post, url, body)
   defp send_request(http_client, :put, url, body), do: choose_action(http_client, :put, url, body)
+  defp send_request(http_client, :delete, url), do: choose_action(http_client, :delete, url)
 
   # Response handlers
 
@@ -232,4 +246,30 @@ defmodule User.Persistence do
   defp do_handle_update_response({:ok, %HTTPoison.Response{status_code: 404}}), do: :not_found
   defp do_handle_update_response({:ok, %HTTPoison.Response{status_code: 409}}), do: :conflict
   defp do_handle_update_response(_), do: :error
+
+  defp do_delete_user(http_client, user_id) do
+    url = "#{@base_url}/#{@database}/#{user_id}"
+
+    # Primero obtenemos el documento para obtener el _rev
+    case send_request(http_client, :get, url) do
+      {:ok, %HTTPoison.Response{status_code: 200, body: body}} when is_binary(body) ->
+        user_doc = Poison.decode!(body)
+        rev = user_doc["_rev"]
+
+        # Eliminamos el documento con el _rev
+        delete_url = "#{url}?rev=#{rev}"
+        do_handle_delete_response(send_request(http_client, :delete, delete_url))
+
+      {:ok, %HTTPoison.Response{status_code: 404}} ->
+        :not_found
+
+      _ ->
+        :error
+    end
+  end
+
+  defp do_handle_delete_response({:ok, %HTTPoison.Response{status_code: 200}}), do: :ok
+  defp do_handle_delete_response({:ok, %HTTPoison.Response{status_code: 404}}), do: :not_found
+  defp do_handle_delete_response({:ok, %HTTPoison.Response{status_code: 409}}), do: :conflict
+  defp do_handle_delete_response(_), do: :error
 end

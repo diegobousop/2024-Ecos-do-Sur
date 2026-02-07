@@ -57,13 +57,12 @@ defmodule Chatbot.Worker do
   end
 
 
-  # The worker is called by the leader cause a new message was received (native)
+  # The worker is called by the leader cause a new message was received (app)
   @impl GenServer
   def handle_call({:native, :answer, key, user, lang}, {leader_pid, _}, state) do
     Gettext.put_locale(lang)
     find_conversation_and_start(user,
       fn ->
-        # Native: Salta selección de idioma y va directo a INITIAL_Q1
         do_start_graph_directly(leader_pid, key, user, lang, %{state | is_active: true})
       end,
       fn value ->
