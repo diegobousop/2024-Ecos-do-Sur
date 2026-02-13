@@ -47,7 +47,7 @@ defmodule HTTPUserTest do
   end
 
   test "POST /signUp creates a user" do
-    # Use unique email and username for this test
+
     unique_id = :erlang.unique_integer([:positive])
 
     payload = %{

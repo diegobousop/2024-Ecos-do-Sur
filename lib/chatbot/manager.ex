@@ -3,6 +3,7 @@ defmodule Chatbot.Manager do
   alias Chatbot.TelegramWrapper
   alias Chatbot.FaqWork
   alias Chatbot.FaqCommerce
+  alias Chatbot.FaqHateSpeech
   alias Chatbot.PersonGraph
   alias Chatbot.FaqGraph
   alias Chatbot.FaqHealthcareGraph
@@ -43,6 +44,7 @@ defmodule Chatbot.Manager do
   def resolve({{state, :faq_commerce}, history, memory}, user, key, response, message_id), do: FaqCommerce.resolve({state, history, memory}, user, key, response, message_id)
   def resolve({{state, :faq_work}, history, memory}, user, key, response, message_id), do: FaqWork.resolve({state, history, memory}, user, key, response, message_id)
   def resolve({{state, :faq_rent}, history, memory}, user, key, response, message_id), do: FaqRent.resolve({state, history, memory}, user, key, response, message_id)
+  def resolve({{state, :faq_hate_speech}, history, memory}, user, key, response, message_id), do: FaqHateSpeech.resolve({state, history, memory}, user, key, response, message_id)
   def resolve({{state, :person}, history, memory}, user, key, response, message_id), do: PersonGraph.resolve({state, history, memory}, user, key, response, message_id)
 
 end

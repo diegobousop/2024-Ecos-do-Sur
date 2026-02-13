@@ -196,7 +196,7 @@ msgstr "Hello! I am the chatbot *Ecosbot*, and my mission is to help you in case
 #: lib/chatbot/graphs/urgent/initial_graph.ex:45
 #, elixir-autogen, elixir-format
 msgid "INITIAL_Q2"
-msgstr "Is the person who is attacking an authority? (Police, Civil Guard, ... )"
+msgstr "Are you having an incident with law enforcement officers (Police, Civil Guard, etc.)?"
 
 #: lib/chatbot/graphs/urgent/initial_graph.ex:55
 #, elixir-autogen, elixir-format
@@ -2541,3 +2541,101 @@ msgstr "Do you want to locate these resources in your area?"
 #, elixir-autogen, elixir-format
 msgid "RESTART"
 msgstr "Do you want to either close or restart the conversation?"
+
+#: lib/chatbot/graphs/faq/faq_hate_speech.ex:28
+#, elixir-autogen, elixir-format
+msgid "HATE_SPEECH_RS_TITLE"
+msgstr "🤬 What type of hate speech have you received?"
+
+#: lib/chatbot/graphs/faq/faq_hate_speech.ex:17
+#, elixir-autogen, elixir-format
+msgid "HATE_SPEECH_RS_Q1"
+msgstr "Intimidation and/or harassment"
+
+#: lib/chatbot/graphs/faq/faq_hate_speech.ex:18
+#, elixir-autogen, elixir-format
+msgid "HATE_SPEECH_RS_Q2"
+msgstr "Threats"
+
+#: lib/chatbot/graphs/faq/faq_hate_speech.ex:19
+#, elixir-autogen, elixir-format
+msgid "HATE_SPEECH_RS_Q3"
+msgstr "Serious insults"
+
+#: lib/chatbot/graphs/faq/faq_hate_speech.ex:20
+#, elixir-autogen, elixir-format
+msgid "HATE_SPEECH_RS_Q4"
+msgstr "False accusations"
+
+#: lib/chatbot/graphs/faq/faq_hate_speech.ex:21
+#, elixir-autogen, elixir-format
+msgid "HATE_SPEECH_RS_Q5"
+msgstr "Incitement or justification of violence"
+
+#: lib/chatbot/graphs/faq/faq_hate_speech.ex:22
+#, elixir-autogen, elixir-format
+msgid "HATE_SPEECH_RS_Q6"
+msgstr "Stereotypes and prejudices"
+
+#: lib/chatbot/graphs/faq/faq_hate_speech.ex:23
+#, elixir-autogen, elixir-format
+msgid "HATE_SPEECH_RS_Q7"
+msgstr "Rejection of a collective"
+
+#: lib/chatbot/graphs/faq/faq_hate_speech.ex:24
+#, elixir-autogen, elixir-format
+msgid "HATE_SPEECH_RS_Q8"
+msgstr "I'm not sure"
+
+#: lib/chatbot/graphs/faq/faq_hate_speech.ex:44
+#, elixir-autogen, elixir-format
+msgid "HATE_SPEECH_RS_S1"
+msgstr "If you consider that you or other people are receiving some of these attacks, verbal or written, on social media:\n\n"
+"• Aggressions or abuse.\n"
+"• Serious insults.\n"
+"• Slander, defamation, false accusations that damage your image.\n"
+"• Harassment or any other form of violence.\n"
+"• Incitement or justification of hate crimes and violence.\n\n"
+"And you also believe that these attacks are based on ethnic, racial, gender, xenophobia or religious hatred reasons.\n\n"
+"*Follow these steps:*\n\n"
+"1️⃣ Do not respond to the messages.\n\n"
+"2️⃣ Review the aggressor's profile and try to locate more hate content or extremist symbolism. They will serve to give context.\n\n"
+"3️⃣ Take screenshots of the original message, the profile and other hate content they have published.\n\n"
+"4️⃣ Certify your screenshot so it can serve as evidence in case of complaint. You can do it at [eGarante](https://www.egarante.com) or also at [SafeStamper](https://safestamper.com).\n\n"
+"5️⃣ If you consider the possibility of filing a lawsuit now or in the future, DO NOT REPORT the profile or the hate content on the social network.\n\n"
+"6️⃣ Go to a [CEDRE](https://igualdadynodiscriminacion.igualdad.gob.es/) office or an organization like Ecos do Sur that can advise you on how to file a complaint and what the options are in your specific case."
+
+#: lib/chatbot/graphs/faq/faq_hate_speech.ex:46
+#, elixir-autogen, elixir-format
+msgid "HATE_SPEECH_RS_S2"
+msgstr "A large part of hate content is protected by freedom of expression.\n\n"
+"For example, discrediting, stigmatization, rejection, mild insults or negative stereotypes, in general, are not considered punishable by law.\n\n"
+"Only hate expressions that violate other rights (to image, honor, integrity...) are punishable.\n\n"
+"This does not mean that legal hate is not dangerous. It simply means that we have to confront it through non-judicial means.\n\n"
+"Here we explain how (Link to the Hate Speech section in the information section)"
+
+#: lib/chatbot/graphs/faq/faq_hate_speech.ex:48
+#, elixir-autogen, elixir-format
+msgid "HATE_SPEECH_RS_S3"
+msgstr "A large part of hate content is protected by freedom of expression.\n\n"
+"For example, discrediting, stigmatization, rejection, mild insults or negative stereotypes, in general, are not considered punishable by law.\n\n"
+"Only hate expressions that violate other rights (to image, honor, integrity...) are punishable.\n\n"
+"This does not mean that legal hate is not dangerous. It simply means that we have to confront it through non-judicial means.\n\n"
+"Here we explain how (Link to the Hate Speech section in the information section)"
+
+#: lib/chatbot/graphs/faq/faq_hate_speech.ex:50
+#, elixir-autogen, elixir-format
+msgid "HATE_SPEECH_RS_S4"
+msgstr "Read the hate content carefully.\n\n"
+"If it includes expressions that violate your rights (such as the right to image, honor, integrity...) or there is a credible call to violence, and you also believe you are being attacked for ethnic, racial, gender, religious hatred reasons... *It may be a hate crime.*\n\n"
+"If it includes offensive expressions that are not openly violent, mild insults, rejection or negative stereotypes, and you also believe the motivation is ethnic, racial, gender, religious hatred... *It may be hate protected by freedom of expression.*"
+
+#: lib/chatbot/graphs/faq/faq_hate_speech.ex:54
+#, elixir-autogen, elixir-format
+msgid "HATE_SPEECH_RS_S4_BTN1"
+msgstr "Hate crime"
+
+#: lib/chatbot/graphs/faq/faq_hate_speech.ex:55
+#, elixir-autogen, elixir-format
+msgid "HATE_SPEECH_RS_S4_BTN2"
+msgstr "Protected hate"

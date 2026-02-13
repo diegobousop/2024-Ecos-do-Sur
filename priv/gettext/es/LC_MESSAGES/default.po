@@ -196,7 +196,7 @@ msgstr "Hola! Soy el chatbot *Ecosbot*, y mi misión es ayudarte en casos de agr
 #: lib/chatbot/graphs/urgent/initial_graph.ex:45
 #, elixir-autogen, elixir-format
 msgid "INITIAL_Q2"
-msgstr "¿La persona que está agrediendo es una autoridad? ( Policía, Guardia Civil, ... )"
+msgstr "¿Estás teniendo un incidente con agentes de la autoridad (Policía, Guardia Civil, etc)?"
 
 #: lib/chatbot/graphs/urgent/initial_graph.ex:55
 #, elixir-autogen, elixir-format
@@ -2544,3 +2544,101 @@ msgstr "¿Quieres localizar estos recursos en tu zona?"
 #, elixir-autogen, elixir-format
 msgid "RESTART"
 msgstr "Quieres reiniciar la conversación o salir?"
+
+#: lib/chatbot/graphs/faq/faq_hate_speech.ex:28
+#, elixir-autogen, elixir-format
+msgid "HATE_SPEECH_RS_TITLE"
+msgstr "🤬 ¿Qué tipo de discurso de odio has recibido?"
+
+#: lib/chatbot/graphs/faq/faq_hate_speech.ex:17
+#, elixir-autogen, elixir-format
+msgid "HATE_SPEECH_RS_Q1"
+msgstr "Intimidación y/o acoso"
+
+#: lib/chatbot/graphs/faq/faq_hate_speech.ex:18
+#, elixir-autogen, elixir-format
+msgid "HATE_SPEECH_RS_Q2"
+msgstr "Amenazas"
+
+#: lib/chatbot/graphs/faq/faq_hate_speech.ex:19
+#, elixir-autogen, elixir-format
+msgid "HATE_SPEECH_RS_Q3"
+msgstr "Insultos graves"
+
+#: lib/chatbot/graphs/faq/faq_hate_speech.ex:20
+#, elixir-autogen, elixir-format
+msgid "HATE_SPEECH_RS_Q4"
+msgstr "Acusaciones falsas"
+
+#: lib/chatbot/graphs/faq/faq_hate_speech.ex:21
+#, elixir-autogen, elixir-format
+msgid "HATE_SPEECH_RS_Q5"
+msgstr "Incitación o justificación de la violencia"
+
+#: lib/chatbot/graphs/faq/faq_hate_speech.ex:22
+#, elixir-autogen, elixir-format
+msgid "HATE_SPEECH_RS_Q6"
+msgstr "Estereotipos y prejuicios"
+
+#: lib/chatbot/graphs/faq/faq_hate_speech.ex:23
+#, elixir-autogen, elixir-format
+msgid "HATE_SPEECH_RS_Q7"
+msgstr "Rechazo a un colectivo"
+
+#: lib/chatbot/graphs/faq/faq_hate_speech.ex:24
+#, elixir-autogen, elixir-format
+msgid "HATE_SPEECH_RS_Q8"
+msgstr "No lo tengo claro"
+
+#: lib/chatbot/graphs/faq/faq_hate_speech.ex:44
+#, elixir-autogen, elixir-format
+msgid "HATE_SPEECH_RS_S1"
+msgstr "Si consideras que tú u otras personas estáis recibiendo algunos de estos ataques, verbales o escritos, en las redes sociales:\n\n"
+"• Agresiones o abusos.\n"
+"• Insultos graves.\n"
+"• Injurias, calumnias, falsas acusaciones que dañan tu imagen.\n"
+"• Acoso o cualquier otra forma de violencia.\n"
+"• Incitación o justificación de los delitos de odio y de la violencia.\n\n"
+"Y además crees que esos ataques se producen por razones étnicas, raciales, de género, xenofobia u odio religioso.\n\n"
+"*Sigue estos pasos:*\n\n"
+"1️⃣ No respondas a los mensajes.\n\n"
+"2️⃣ Revisa el perfil de la persona agresora y trata de localizar en él más contenidos de odio o simbología extremista. Servirán para dar contexto.\n\n"
+"3️⃣ Saca capturas de pantalla del mensaje original, del perfil y otros contenidos de odio que haya publicado.\n\n"
+"4️⃣ Certifica tu captura para que sirva como prueba en caso de denuncia. Puedes hacerlo en [eGarante](https://www.egarante.com) o también en [SafeStamper](https://safestamper.com).\n\n"
+"5️⃣ Si consideras la posibilidad de presentar una demanda judicial ahora o en el futuro, NO REPORTES el perfil ni el contenido de odio en la red social.\n\n"
+"6️⃣ Acude a una oficina del [CEDRE](https://igualdadynodiscriminacion.igualdad.gob.es/) o una organización como Ecos do Sur que pueda asesorarte sobre cómo tramitar una denuncia y cuáles son las opciones en tu caso concreto."
+
+#: lib/chatbot/graphs/faq/faq_hate_speech.ex:46
+#, elixir-autogen, elixir-format
+msgid "HATE_SPEECH_RS_S2"
+msgstr "Una gran parte de los contenidos de odio están protegidos por la libertad de expresión.\n\n"
+"Por ejemplo, el descrédito, la estigmatización, el rechazo, los insultos suaves o los estereotipos negativos, en general no se consideran sancionables por la ley.\n\n"
+"Solamente son sancionables las expresiones de odio que atenten contra otros derechos (a la imagen, al honor, a la integridad...)\n\n"
+"Esto no quiere decir que el odio legal no sea peligroso. Simplemente significa que tenemos que hacerle frente por vías no judiciales.\n\n"
+"Aquí te explicamos cómo (Enlaza con la sección Discurso de Odio del apartado información)"
+
+#: lib/chatbot/graphs/faq/faq_hate_speech.ex:48
+#, elixir-autogen, elixir-format
+msgid "HATE_SPEECH_RS_S3"
+msgstr "Una gran parte de los contenidos de odio están protegidos por la libertad de expresión.\n\n"
+"Por ejemplo, el descrédito, la estigmatización, el rechazo, los insultos suaves o los estereotipos negativos, en general no se consideran sancionables por la ley.\n\n"
+"Solamente son sancionables las expresiones de odio que atenten contra otros derechos (a la imagen, al honor, a la integridad...)\n\n"
+"Esto no quiere decir que el odio legal no sea peligroso. Simplemente significa que tenemos que hacerle frente por vías no judiciales.\n\n"
+"Aquí te explicamos cómo (Enlaza con la sección Discurso de Odio del apartado información)"
+
+#: lib/chatbot/graphs/faq/faq_hate_speech.ex:50
+#, elixir-autogen, elixir-format
+msgid "HATE_SPEECH_RS_S4"
+msgstr "Lee con calma el contenido de odio.\n\n"
+"Si incluye expresiones que atentan contra tus derechos (como el derecho a la imagen, al honor, a la integridad...) o hay una llamada creíble a la violencia, y además crees que te atacan por motivos de odio étnico, racial, de género, religioso... *Puede tratarse de un delito de odio.*\n\n"
+"Si incluye expresiones ofensivas no abiertamente violentas, insultos leves, rechazo o estereotipos negativos, y además crees que la motivación es el odio étnico, racial, de género, religioso... *Puede tratarse de odio protegido por la libertad de expresión.*"
+
+#: lib/chatbot/graphs/faq/faq_hate_speech.ex:54
+#, elixir-autogen, elixir-format
+msgid "HATE_SPEECH_RS_S4_BTN1"
+msgstr "Delito de odio"
+
+#: lib/chatbot/graphs/faq/faq_hate_speech.ex:55
+#, elixir-autogen, elixir-format
+msgid "HATE_SPEECH_RS_S4_BTN2"
+msgstr "Odio protegido"

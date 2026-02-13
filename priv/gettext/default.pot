@@ -1563,3 +1563,78 @@ msgstr ""
 #, elixir-autogen, elixir-format
 msgid "RESTART"
 msgstr ""
+
+#: lib/chatbot/graphs/faq/faq_hate_speech.ex:28
+#, elixir-autogen, elixir-format
+msgid "HATE_SPEECH_RS_TITLE"
+msgstr ""
+
+#: lib/chatbot/graphs/faq/faq_hate_speech.ex:17
+#, elixir-autogen, elixir-format
+msgid "HATE_SPEECH_RS_Q1"
+msgstr ""
+
+#: lib/chatbot/graphs/faq/faq_hate_speech.ex:18
+#, elixir-autogen, elixir-format
+msgid "HATE_SPEECH_RS_Q2"
+msgstr ""
+
+#: lib/chatbot/graphs/faq/faq_hate_speech.ex:19
+#, elixir-autogen, elixir-format
+msgid "HATE_SPEECH_RS_Q3"
+msgstr ""
+
+#: lib/chatbot/graphs/faq/faq_hate_speech.ex:20
+#, elixir-autogen, elixir-format
+msgid "HATE_SPEECH_RS_Q4"
+msgstr ""
+
+#: lib/chatbot/graphs/faq/faq_hate_speech.ex:21
+#, elixir-autogen, elixir-format
+msgid "HATE_SPEECH_RS_Q5"
+msgstr ""
+
+#: lib/chatbot/graphs/faq/faq_hate_speech.ex:22
+#, elixir-autogen, elixir-format
+msgid "HATE_SPEECH_RS_Q6"
+msgstr ""
+
+#: lib/chatbot/graphs/faq/faq_hate_speech.ex:23
+#, elixir-autogen, elixir-format
+msgid "HATE_SPEECH_RS_Q7"
+msgstr ""
+
+#: lib/chatbot/graphs/faq/faq_hate_speech.ex:24
+#, elixir-autogen, elixir-format
+msgid "HATE_SPEECH_RS_Q8"
+msgstr ""
+
+#: lib/chatbot/graphs/faq/faq_hate_speech.ex:44
+#, elixir-autogen, elixir-format
+msgid "HATE_SPEECH_RS_S1"
+msgstr ""
+
+#: lib/chatbot/graphs/faq/faq_hate_speech.ex:46
+#, elixir-autogen, elixir-format
+msgid "HATE_SPEECH_RS_S2"
+msgstr ""
+
+#: lib/chatbot/graphs/faq/faq_hate_speech.ex:48
+#, elixir-autogen, elixir-format
+msgid "HATE_SPEECH_RS_S3"
+msgstr ""
+
+#: lib/chatbot/graphs/faq/faq_hate_speech.ex:50
+#, elixir-autogen, elixir-format
+msgid "HATE_SPEECH_RS_S4"
+msgstr ""
+
+#: lib/chatbot/graphs/faq/faq_hate_speech.ex:54
+#, elixir-autogen, elixir-format
+msgid "HATE_SPEECH_RS_S4_BTN1"
+msgstr ""
+
+#: lib/chatbot/graphs/faq/faq_hate_speech.ex:55
+#, elixir-autogen, elixir-format
+msgid "HATE_SPEECH_RS_S4_BTN2"
+msgstr ""

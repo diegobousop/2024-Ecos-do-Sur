@@ -38,7 +38,7 @@ defmodule Chatbot.FaqGraph do
   def resolve({:start_final_resolve, history, _}, user, key, "CHATBOT_INFORMATION", message_id), do:  resolve({:CHATBOT, history, nil}, user, key, nil, message_id)
   def resolve({:start_final_resolve, history, _}, user, key, "ECOS_INFORMATION", message_id), do:  resolve({:ECOS, history, nil}, user, key, nil, message_id)
   def resolve({:start_final_resolve, history, _}, user, key, "HATE_SPEECH_DEF", message_id), do:  resolve({:HS_DEF, history, nil}, user, key, nil, message_id)
-  def resolve({:start_final_resolve, history, _}, user, key, "HATE_SPEECH_RS", message_id), do:  resolve({:HS_RS, history, nil}, user, key, nil, message_id)
+  def resolve({:start_final_resolve, history, _}, user, key, "HATE_SPEECH_RS", message_id), do:  Manager.resolve({{:start, :faq_hate_speech}, history, nil}, user, key, nil, message_id)
 
   ##################################
   # SOLUTIONS
@@ -49,6 +49,4 @@ defmodule Chatbot.FaqGraph do
   def resolve({:ECOS, _, _}, user, key, _, message_id), do:  CommonFunctions.do_finalize_simple(gettext("ECOS_INFORMATION"), user, message_id, key)
   # HATE_SPEECH_DEF ----
   def resolve({:HS_DEF, _, _}, user, key, _, message_id), do:  CommonFunctions.do_finalize_simple(gettext("HATE_SPEECH_DEF"), user, message_id, key)
-  # HATE_SPEECH_RS ----
-  def resolve({:HS_RS, _, _}, user, key, _, message_id), do:  CommonFunctions.do_finalize_simple(gettext("HATE_SPEECH_RS"), user, message_id, key)
 end
