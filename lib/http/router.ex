@@ -5,6 +5,7 @@ defmodule Http.Router do
 
   alias Http.UserController
   alias Http.ChatController
+  alias Http.FeedController
 
   plug Plug.Logger
   plug CORSPlug
@@ -15,6 +16,15 @@ defmodule Http.Router do
 
   post "/api/chat" do
     ChatController.send_message(conn)
+  end
+
+  # Endpoint to trigger a push notification via Expo
+  post "/api/notify" do
+    Http.NotificationController.send_notification(conn)
+  end
+
+  get "/api/feed" do
+    FeedController.list(conn)
   end
 
   # Endpoint for callback queries

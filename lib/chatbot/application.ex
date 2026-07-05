@@ -7,13 +7,15 @@ defmodule Chatbot.Application do
 
   @impl true
   def start(_type, _args) do
+    bot_key = Application.get_env(:chatbot, :telegram_bot_secret) || System.get_env("TELEGRAM_BOT_SECRET")
+
     children = [
       # Starts a worker by calling: Chatbot.Worker.start_link(arg)
       # {Chatbot.Worker, arg}
       Http.Buffer,
       Http.Authentication.SignUpVerification,
       {Plug.Cowboy, scheme: :http, plug: Http.Router, options: [port: 4000]},
-      {Chatbot.Leader, bot_key: System.get_env("TELEGRAM_BOT_SECRET")},
+      {Chatbot.Leader, bot_key: bot_key},
       Chatbot.Cache,
       Chatbot.Persistence,
       User.Persistence,

@@ -466,6 +466,59 @@ defmodule Http.UserController do
   end
 
   @doc """
+  GET /api/me
+  Devuelve la información del usuario autenticado.
+  """
+  def me(conn) do
+    Logger.info("HTTP me request")
+
+    claims = conn.assigns[:jwt_claims]
+    username = claims["sub"]
+
+    lookup_result =
+      try do
+        GenServer.call(:UserPersistence, {:check_user_exists, username})
+      catch
+        :exit, reason ->
+          Logger.error("me failed calling :UserPersistence: #{inspect(reason)}")
+          {:persistence_down, reason}
+      end
+
+    case lookup_result do
+      {:exists, user_map} when is_map(user_map) ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(
+          200,
+          Poison.encode!(%{
+            id: user_map["_id"],
+            username: user_map["username"],
+            email: user_map["email"],
+            full_name: user_map["full_name"],
+            role: user_map["role"]
+          })
+        )
+
+      :not_found ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(404, Poison.encode!(%{error: "user_not_found"}))
+
+      {:persistence_down, _reason} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(503, Poison.encode!(%{error: "persistence_unavailable"}))
+
+      other ->
+        Logger.error("me unexpected persistence result: #{inspect(other)}")
+
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(500, Poison.encode!(%{error: "internal_error"}))
+    end
+  end
+
+  @doc """
   GET /api/users
   Obtiene todos los usuarios con paginación.
   """
@@ -730,7 +783,6 @@ defmodule Http.UserController do
       true ->
         result =
           try do
-            # Determinar número de días según el rango
             days = case time_range do
               "7days" -> 7
               "30days" -> 30
@@ -738,33 +790,48 @@ defmodule Http.UserController do
               _ -> 7
             end
 
-            # Obtener todos los usuarios
             case GenServer.call(:UserPersistence, {:get_all_users, 1, 1000}, 30_000) do
               {:ok, data} ->
                 users = data.users
 
-                # Calcular estadísticas agregadas
-                stats =
-                  Enum.reduce(users, %{total: 0, urgent: 0, info: 0, by_user: []}, fn user, acc ->
-                    username = user["username"]
-
-                    {num_urgent, num_info, num_total} =
-                      case get_user_chat_count_by_category(username) do
-                        {:ok, counts} -> counts
-                        _ -> {0, 0, 0}
+                # Obtener conversaciones de TODOS los usuarios en PARALELO (una sola vez)
+                user_conversations =
+                  users
+                  |> Task.async_stream(
+                    fn user ->
+                      username = user["username"]
+                      convs = case GenServer.call(:Persistence, {:get_user_conversations, username}, 5_000) do
+                        {:ok, convs} when is_list(convs) -> convs
+                        _ -> []
                       end
+                      {username, convs}
+                    end,
+                    max_concurrency: 20,
+                    timeout: 10_000,
+                    on_timeout: :kill_task
+                  )
+                  |> Enum.reduce(%{}, fn
+                    {:ok, {username, convs}}, acc -> Map.put(acc, username, convs)
+                    _, acc -> acc
+                  end)
 
-                    user_stat = %{
-                      userId: username,
-                      count: num_total
+                # Calcular estadísticas usando los datos ya obtenidos
+                {stats, all_conversations} =
+                  Enum.reduce(user_conversations, {%{total: 0, urgent: 0, info: 0, by_user: []}, []}, fn {username, convs}, {stats_acc, convs_acc} ->
+                    num_urgent = Enum.count(convs, fn c -> Map.get(c, "category") == "urgent" end)
+                    num_info = Enum.count(convs, fn c -> Map.get(c, "category") == "information" end)
+                    num_total = length(convs)
+
+                    user_stat = %{userId: username, count: num_total}
+
+                    new_stats = %{
+                      total: stats_acc.total + num_total,
+                      urgent: stats_acc.urgent + num_urgent,
+                      info: stats_acc.info + num_info,
+                      by_user: [user_stat | stats_acc.by_user]
                     }
 
-                    %{
-                      total: acc.total + num_total,
-                      urgent: acc.urgent + num_urgent,
-                      info: acc.info + num_info,
-                      by_user: [user_stat | acc.by_user]
-                    }
+                    {new_stats, convs ++ convs_acc}
                   end)
 
                 # Top 5 usuarios más activos
@@ -774,34 +841,18 @@ defmodule Http.UserController do
                   |> Enum.sort_by(fn u -> u.count end, :desc)
                   |> Enum.take(5)
 
-                # Datos temporales separados por tipo (urgente e info)
-                # Obtener todas las conversaciones de todos los usuarios
-                all_conversations =
-                  Enum.flat_map(users, fn user ->
-                    username = user["username"]
-                    case GenServer.call(:Persistence, {:get_user_conversations, username}, 5_000) do
-                      {:ok, convs} when is_list(convs) -> convs
-                      _ -> []
-                    end
-                  end)
-
-                Logger.info("Total conversations found: #{length(all_conversations)}")
-
-                # Agrupar conversaciones por fecha y categoría
+                # Datos temporales separados por tipo
                 today = Date.utc_today()
 
                 daily_data =
                   Enum.map((days - 1)..0, fn days_ago ->
                     date = Date.add(today, -days_ago)
 
-                    # Filtrar conversaciones de este día
                     convs_on_date = Enum.filter(all_conversations, fn conv ->
                       created_at = Map.get(conv, "created_at")
                       if is_binary(created_at) do
                         case DateTime.from_iso8601(created_at) do
-                          {:ok, dt, _} ->
-                            conv_date = DateTime.to_date(dt)
-                            Date.compare(conv_date, date) == :eq
+                          {:ok, dt, _} -> Date.compare(DateTime.to_date(dt), date) == :eq
                           _ -> false
                         end
                       else
@@ -813,18 +864,12 @@ defmodule Http.UserController do
                     info_count = Enum.count(convs_on_date, fn c -> Map.get(c, "category") == "information" end)
 
                     date_str = if days <= 31 do
-                      # Para 7 y 30 días: MM-DD
                       "#{String.pad_leading(to_string(date.month), 2, "0")}-#{String.pad_leading(to_string(date.day), 2, "0")}"
                     else
-                      # Para 365 días: solo mes
                       "#{String.pad_leading(to_string(date.month), 2, "0")}"
                     end
 
-                    %{
-                      date: date_str,
-                      urgent: urgent_count,
-                      info: info_count
-                    }
+                    %{date: date_str, urgent: urgent_count, info: info_count}
                   end)
 
                 # Si es año, agrupar por mes
@@ -845,10 +890,7 @@ defmodule Http.UserController do
 
                 response = %{
                   totalConversations: stats.total,
-                  conversationsByType: %{
-                    urgent: stats.urgent,
-                    info: stats.info
-                  },
+                  conversationsByType: %{urgent: stats.urgent, info: stats.info},
                   conversationsByUser: top_users,
                   dailyConversationsUrgent: Enum.map(daily_data, fn d -> %{date: d.date, count: d.urgent} end),
                   dailyConversationsInfo: Enum.map(daily_data, fn d -> %{date: d.date, count: d.info} end),

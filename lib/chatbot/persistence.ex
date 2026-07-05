@@ -23,6 +23,10 @@ defmodule Chatbot.Persistence do
   def create_message(message), do: GenServer.call(:Persistence, {:create_message, message})
   def get_conversation_messages(conversation_id), do: GenServer.call(:Persistence, {:get_conversation_messages, conversation_id})
 
+  # Public API - Notification operations
+  def create_notification(notification), do: GenServer.call(:Persistence, {:create_notification, notification})
+  def get_notifications(limit \\ 50, offset \\ 0), do: GenServer.call(:Persistence, {:get_notifications, limit, offset})
+
   @impl true
   def init(http_client) do
       Logger.info("Persistence Initialized")
@@ -70,6 +74,30 @@ defmodule Chatbot.Persistence do
   @impl true
   def handle_call({:get_conversation_messages, conversation_id}, _from, http_client) when is_binary(conversation_id) do
     res = do_get_conversation_messages(http_client, conversation_id)
+    {:reply, res, http_client}
+  end
+
+  @impl true
+  def handle_call({:create_notification, notification = %Chatbot.Notification{}}, _from, http_client) do
+    res = do_create_document(http_client, notification)
+    {:reply, res, http_client}
+  end
+
+  @impl true
+  def handle_call({:get_notifications, limit, offset}, _from, http_client) do
+    safe_limit =
+      cond do
+        is_integer(limit) and limit > 0 -> min(limit, 200)
+        true -> 50
+      end
+
+    safe_offset =
+      cond do
+        is_integer(offset) and offset > 0 -> offset
+        true -> 0
+      end
+
+    res = do_get_notifications(http_client, safe_limit, safe_offset)
     {:reply, res, http_client}
   end
 
@@ -190,6 +218,52 @@ defmodule Chatbot.Persistence do
         {:ok, docs}
 
       _ ->
+        {:error, :not_found}
+    end
+  end
+
+  # Upper bound on how many notification documents we pull from CouchDB before
+  # sorting and paginating in memory. Large enough for this app's feed volume.
+  @notifications_fetch_cap 1000
+
+  defp do_get_notifications(http_client, limit, offset) do
+    url = "#{@base_url}/#{@database}/_find"
+
+    query = %{
+      selector: %{
+        type: "notification"
+      },
+      limit: @notifications_fetch_cap
+    }
+
+    case send_request(http_client, :post, url, query) do
+      {:ok, %HTTPoison.Response{status_code: 200, body: body}} when is_binary(body) ->
+        result = Poison.decode!(body)
+        docs = result["docs"] || []
+        sorted_docs = Enum.sort_by(docs, &Map.get(&1, "fecha", ""), :desc)
+        total = length(sorted_docs)
+
+        items =
+          sorted_docs
+          |> Enum.drop(offset)
+          |> Enum.take(limit)
+
+        page = %{
+          items: items,
+          total: total,
+          limit: limit,
+          offset: offset,
+          has_more: offset + length(items) < total
+        }
+
+        {:ok, page}
+
+      {:ok, %HTTPoison.Response{status_code: code, body: body}} ->
+        Logger.error("CouchDB notification query failed with code #{code}: #{inspect(body)}")
+        {:error, :not_found}
+
+      error ->
+        Logger.error("CouchDB notification query error: #{inspect(error)}")
         {:error, :not_found}
     end
   end

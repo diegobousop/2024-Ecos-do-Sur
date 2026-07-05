@@ -7,4 +7,5 @@ cover/
 mix.lock
 .vscode
 erl_crash.dump
+.env
 

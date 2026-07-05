@@ -202,11 +202,18 @@ defmodule User.Persistence do
 
   # HTTP request helpers
 
+  # choose_action/3 (2-arg body: :get and :delete)
   defp choose_action(http_client, :get, url) do
     headers = ["Authorization": "Basic " <> Base.encode64("#{@user}:#{@password}")]
     http_client.get(url, headers)
   end
 
+  defp choose_action(http_client, :delete, url) do
+    headers = ["Authorization": "Basic " <> Base.encode64("#{@user}:#{@password}")]
+    http_client.delete(url, headers)
+  end
+
+  # choose_action/4 (3-arg body: :post and :put)
   defp choose_action(http_client, :post, url, body) do
     headers = ["Authorization": "Basic " <> Base.encode64("#{@user}:#{@password}")]
     http_client.post(url, body, headers ++ ["Content-Type": "application/json"])
@@ -217,16 +224,14 @@ defmodule User.Persistence do
     http_client.put(url, body, headers ++ ["Content-Type": "application/json"])
   end
 
-  defp choose_action(http_client, :delete, url) do
-    headers = ["Authorization": "Basic " <> Base.encode64("#{@user}:#{@password}")]
-    http_client.delete(url, headers)
-  end
-
+  # send_request/3 (no body)
   defp send_request(http_client, :post, url), do: choose_action(http_client, :post, url, nil)
   defp send_request(http_client, :get, url), do: choose_action(http_client, :get, url)
+  defp send_request(http_client, :delete, url), do: choose_action(http_client, :delete, url)
+
+  # send_request/4 (with body)
   defp send_request(http_client, :post, url, body), do: choose_action(http_client, :post, url, body)
   defp send_request(http_client, :put, url, body), do: choose_action(http_client, :put, url, body)
-  defp send_request(http_client, :delete, url), do: choose_action(http_client, :delete, url)
 
   # Response handlers
 
