@@ -26,6 +26,7 @@ defmodule Chatbot.Persistence do
   # Public API - Notification operations
   def create_notification(notification), do: GenServer.call(:Persistence, {:create_notification, notification})
   def get_notifications(limit \\ 50, offset \\ 0), do: GenServer.call(:Persistence, {:get_notifications, limit, offset})
+  def search_notifications(query, limit \\ 50, offset \\ 0), do: GenServer.call(:Persistence, {:search_notifications, query, limit, offset})
 
   @impl true
   def init(http_client) do
@@ -85,19 +86,13 @@ defmodule Chatbot.Persistence do
 
   @impl true
   def handle_call({:get_notifications, limit, offset}, _from, http_client) do
-    safe_limit =
-      cond do
-        is_integer(limit) and limit > 0 -> min(limit, 200)
-        true -> 50
-      end
+    res = do_get_notifications(http_client, clamp_limit(limit), clamp_offset(offset))
+    {:reply, res, http_client}
+  end
 
-    safe_offset =
-      cond do
-        is_integer(offset) and offset > 0 -> offset
-        true -> 0
-      end
-
-    res = do_get_notifications(http_client, safe_limit, safe_offset)
+  @impl true
+  def handle_call({:search_notifications, query, limit, offset}, _from, http_client) do
+    res = do_search_notifications(http_client, query, clamp_limit(limit), clamp_offset(offset))
     {:reply, res, http_client}
   end
 
@@ -227,6 +222,30 @@ defmodule Chatbot.Persistence do
   @notifications_fetch_cap 1000
 
   defp do_get_notifications(http_client, limit, offset) do
+    case fetch_all_notifications(http_client) do
+      {:ok, docs} ->
+        {:ok, paginate_notifications(docs, limit, offset)}
+
+      error ->
+        error
+    end
+  end
+
+  defp do_search_notifications(http_client, query, limit, offset) do
+    normalized = query |> to_string() |> String.trim() |> String.downcase()
+
+    case fetch_all_notifications(http_client) do
+      {:ok, docs} ->
+        filtered = Enum.filter(docs, &matches_query?(&1, normalized))
+        {:ok, paginate_notifications(filtered, limit, offset)}
+
+      error ->
+        error
+    end
+  end
+
+  # Fetches every notification document (up to the fetch cap) from CouchDB.
+  defp fetch_all_notifications(http_client) do
     url = "#{@base_url}/#{@database}/_find"
 
     query = %{
@@ -239,24 +258,7 @@ defmodule Chatbot.Persistence do
     case send_request(http_client, :post, url, query) do
       {:ok, %HTTPoison.Response{status_code: 200, body: body}} when is_binary(body) ->
         result = Poison.decode!(body)
-        docs = result["docs"] || []
-        sorted_docs = Enum.sort_by(docs, &Map.get(&1, "fecha", ""), :desc)
-        total = length(sorted_docs)
-
-        items =
-          sorted_docs
-          |> Enum.drop(offset)
-          |> Enum.take(limit)
-
-        page = %{
-          items: items,
-          total: total,
-          limit: limit,
-          offset: offset,
-          has_more: offset + length(items) < total
-        }
-
-        {:ok, page}
+        {:ok, result["docs"] || []}
 
       {:ok, %HTTPoison.Response{status_code: code, body: body}} ->
         Logger.error("CouchDB notification query failed with code #{code}: #{inspect(body)}")
@@ -267,6 +269,42 @@ defmodule Chatbot.Persistence do
         {:error, :not_found}
     end
   end
+
+  # Sorts notifications newest-first and slices the requested page, returning
+  # the items plus pagination metadata.
+  defp paginate_notifications(docs, limit, offset) do
+    sorted_docs = Enum.sort_by(docs, &Map.get(&1, "fecha", ""), :desc)
+    total = length(sorted_docs)
+
+    items =
+      sorted_docs
+      |> Enum.drop(offset)
+      |> Enum.take(limit)
+
+    %{
+      items: items,
+      total: total,
+      limit: limit,
+      offset: offset,
+      has_more: offset + length(items) < total
+    }
+  end
+
+  # An empty query matches everything; otherwise match the term against the
+  # title and body (case-insensitive substring).
+  defp matches_query?(_doc, ""), do: true
+
+  defp matches_query?(doc, query) do
+    titulo = doc |> Map.get("titulo", "") |> to_string() |> String.downcase()
+    cuerpo = doc |> Map.get("cuerpo", "") |> to_string() |> String.downcase()
+    String.contains?(titulo, query) or String.contains?(cuerpo, query)
+  end
+
+  defp clamp_limit(limit) when is_integer(limit) and limit > 0, do: min(limit, 200)
+  defp clamp_limit(_), do: 50
+
+  defp clamp_offset(offset) when is_integer(offset) and offset > 0, do: offset
+  defp clamp_offset(_), do: 0
 
   # Function that may handle more requests in the future (:put, :get, ...)
   # Wrapper function to choose appropriate action based on environment

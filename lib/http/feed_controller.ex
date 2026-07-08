@@ -34,6 +34,34 @@ defmodule Http.FeedController do
     end
   end
 
+  def search(conn) do
+    conn = fetch_query_params(conn)
+    query = conn.query_params["q"] || ""
+    limit = parse_limit(conn.query_params["limit"])
+    offset = parse_offset(conn.query_params["offset"], conn.query_params["page"], limit)
+
+    case Chatbot.Persistence.search_notifications(query, limit, offset) do
+      {:ok, %{items: items} = page} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(200, Poison.encode!(%{
+          items: items,
+          query: query,
+          total: page.total,
+          limit: page.limit,
+          offset: page.offset,
+          has_more: page.has_more
+        }))
+
+      {:error, reason} ->
+        Logger.error("Notification search failed: #{inspect(reason)}")
+
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(500, Poison.encode!(%{error: "search_unavailable"}))
+    end
+  end
+
   defp parse_limit(nil), do: @default_limit
 
   defp parse_limit(limit) when is_binary(limit) do

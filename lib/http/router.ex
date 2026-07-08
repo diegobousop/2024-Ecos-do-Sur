@@ -27,6 +27,10 @@ defmodule Http.Router do
     FeedController.list(conn)
   end
 
+  get "/api/notifications/search" do
+    FeedController.search(conn)
+  end
+
   # Endpoint for callback queries
   post "/api/callback" do
     ChatController.handle_callback(conn)

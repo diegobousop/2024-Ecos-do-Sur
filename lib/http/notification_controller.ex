@@ -1,7 +1,12 @@
 defmodule Http.NotificationController do
   @moduledoc """
   Controller to send push notifications via Expo push service.
-  Expects JSON body: {"to": "ExpoPushToken...", "title": "...", "body": "...", "data": {...}}
+  Expects JSON body:
+  {"to": "ExpoPushToken...", "title": "...", "body": "...", "links": ["https://..."], "data": {...}}
+
+  `links` is an optional list of URL strings. It may be sent at the top level or
+  nested inside `data` (`data.links`); either way it is forwarded to Expo and
+  persisted so the feed can list every link.
   """
   require Logger
   import Plug.Conn
@@ -11,7 +16,10 @@ defmodule Http.NotificationController do
   def send_notification(conn) do
     case conn.body_params do
       %{"to" => to, "title" => title, "body" => body} = params when is_binary(to) and is_binary(title) and is_binary(body) ->
-        data = Map.get(params, "data", %{})
+        # Accept `links` at the top level or inside `data`, normalized to a list
+        # of strings, and make sure Expo receives it inside `data`.
+        links = normalize_links(params, Map.get(params, "data", %{}))
+        data = Map.put(Map.get(params, "data", %{}), "links", links)
 
         payload = %{
           to: to,
@@ -72,13 +80,20 @@ defmodule Http.NotificationController do
   # Builds a Chatbot.Notification from the push payload and stores it so that
   # GET /api/feed can list it later. Errors are logged, never raised.
   defp persist_notification(title, body, data) do
+    links =
+      case data |> Map.get("links", []) |> Enum.filter(&is_binary/1) do
+        [] -> data |> single_link() |> List.wrap()
+        list -> list
+      end
+
     notification =
       Chatbot.Notification.new(
         title,
         body,
         DateTime.to_iso8601(DateTime.utc_now()),
-        first_link(data),
-        first_image(data)
+        List.first(links),
+        first_image(data),
+        links
       )
 
     case Chatbot.Persistence.create_notification(notification) do
@@ -93,10 +108,22 @@ defmodule Http.NotificationController do
       Logger.error("Exception while persisting notification: #{inspect(error)}")
   end
 
-  # Extracts the first external link from the push `data` map, if any.
-  defp first_link(%{"links" => [link | _]}) when is_binary(link), do: link
-  defp first_link(%{"enlace_externo" => link}) when is_binary(link), do: link
-  defp first_link(_), do: nil
+  # Resolves the list of links from either the top-level `links` field or the
+  # nested `data.links`, keeping only string values.
+  defp normalize_links(params, data) do
+    raw =
+      cond do
+        is_list(params["links"]) -> params["links"]
+        is_list(data["links"]) -> data["links"]
+        true -> []
+      end
+
+    Enum.filter(raw, &is_binary/1)
+  end
+
+  # Fallback single link when no `links` list is provided.
+  defp single_link(%{"enlace_externo" => link}) when is_binary(link), do: link
+  defp single_link(_), do: nil
 
   # Extracts the first image URL from the push `data` map, if any.
   defp first_image(%{"images" => [image | _]}) when is_binary(image), do: image

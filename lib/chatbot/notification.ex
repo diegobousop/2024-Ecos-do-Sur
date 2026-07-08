@@ -1,5 +1,5 @@
 defmodule Chatbot.Notification do
-  defstruct [:_id, :_rev, :titulo, :fecha, :cuerpo, :enlace_externo, :url_imagen, :type]
+  defstruct [:_id, :_rev, :titulo, :fecha, :cuerpo, :enlace_externo, :url_imagen, :type, enlaces: []]
 
   @type t :: %__MODULE__{
     _id: String.t(),
@@ -9,7 +9,8 @@ defmodule Chatbot.Notification do
     cuerpo: String.t(),
     enlace_externo: String.t() | nil,
     url_imagen: String.t() | nil,
-    type: String.t()
+    type: String.t(),
+    enlaces: [String.t()]
   }
 
   defimpl Poison.Encoder, for: __MODULE__ do
@@ -22,8 +23,8 @@ defmodule Chatbot.Notification do
     end
   end
 
-  def new(titulo, cuerpo, fecha \\ DateTime.to_iso8601(DateTime.utc_now()), enlace_externo \\ nil, url_imagen \\ nil)
-      when is_binary(titulo) and is_binary(cuerpo) and is_binary(fecha) do
+  def new(titulo, cuerpo, fecha \\ DateTime.to_iso8601(DateTime.utc_now()), enlace_externo \\ nil, url_imagen \\ nil, enlaces \\ [])
+      when is_binary(titulo) and is_binary(cuerpo) and is_binary(fecha) and is_list(enlaces) do
     %__MODULE__{
       _id: generate_id(),
       titulo: titulo,
@@ -31,6 +32,7 @@ defmodule Chatbot.Notification do
       cuerpo: cuerpo,
       enlace_externo: enlace_externo,
       url_imagen: url_imagen,
+      enlaces: enlaces,
       type: "notification"
     }
   end
