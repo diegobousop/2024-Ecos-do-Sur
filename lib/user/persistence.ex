@@ -52,7 +52,13 @@ defmodule User.Persistence do
 
   @impl true
   def handle_call({:get_all_users, page, limit}, _from, http_client) when is_integer(page) and is_integer(limit) do
-    res = do_get_all_users(http_client, page, limit)
+    res = do_get_all_users(http_client, page, limit, nil)
+    {:reply, res, http_client}
+  end
+
+  @impl true
+  def handle_call({:get_all_users, page, limit, search}, _from, http_client) when is_integer(page) and is_integer(limit) do
+    res = do_get_all_users(http_client, page, limit, search)
     {:reply, res, http_client}
   end
 
@@ -134,14 +140,12 @@ defmodule User.Persistence do
     end
   end
 
-  defp do_get_all_users(http_client, page, limit) do
+  defp do_get_all_users(http_client, page, limit, search) do
     skip = (page - 1) * limit
     url = "#{@base_url}/#{@database}/_find"
 
     query = %{
-      selector: %{
-        type: "user"
-      },
+      selector: build_user_selector(search),
       limit: limit,
       skip: skip,
     }
@@ -153,8 +157,8 @@ defmodule User.Persistence do
         result = Poison.decode!(body)
         docs = result["docs"] || []
 
-        # Obtener el total de usuarios
-        total = get_total_users(http_client)
+        # Obtener el total de usuarios (respetando el filtro de búsqueda)
+        total = get_total_users(http_client, search)
 
         {:ok, %{
           users: docs,
@@ -178,13 +182,33 @@ defmodule User.Persistence do
     end
   end
 
-  defp get_total_users(http_client) do
+  # Construye el selector de CouchDB para usuarios, aplicando una búsqueda
+  # opcional (case-insensitive) sobre username y email.
+  defp build_user_selector(search) when is_binary(search) do
+    case String.trim(search) do
+      "" ->
+        %{type: "user"}
+
+      trimmed ->
+        regex = "(?i)" <> Regex.escape(trimmed)
+
+        %{
+          type: "user",
+          "$or": [
+            %{username: %{"$regex": regex}},
+            %{email: %{"$regex": regex}}
+          ]
+        }
+    end
+  end
+
+  defp build_user_selector(_), do: %{type: "user"}
+
+  defp get_total_users(http_client, search) do
     url = "#{@base_url}/#{@database}/_find"
 
     query = %{
-      selector: %{
-        type: "user"
-      },
+      selector: build_user_selector(search),
       fields: ["_id"],
       limit: 999999
     }

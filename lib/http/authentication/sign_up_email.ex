@@ -2,12 +2,14 @@ defmodule Http.Authentication.SignUpEmail do
   import Swoosh.Email
   require Logger
 
-  @from "no-reply@example.com"
+  @default_from "no-reply@ecosdosur.org"
 
   def send_code(to_email, code) when is_binary(to_email) and is_binary(code) do
+    from_email = Application.get_env(:chatbot, :signup_email_from, @default_from)
+
     email =
       new()
-      |> from(@from)
+      |> from(from_email)
       |> to(to_email)
       |> subject("Your Sign-Up Code")
       |> text_body("Your verification code is: #{code}")

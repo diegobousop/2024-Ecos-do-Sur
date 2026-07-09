@@ -152,7 +152,7 @@ defmodule Http.UserController do
     language = Map.get(conn.body_params, "language", "es")
     gender = Map.get(conn.body_params, "gender")
     role = "user"
-    #verification_code = Map.get(conn.body_params, "verificationCode") || Map.get(conn.body_params, "code")
+    verification_code = Map.get(conn.body_params, "verificationCode") || Map.get(conn.body_params, "code")
 
     valid_languages = ["es", "en", "gl", "gal"]
     valid_genders = ["male", "female", "other", "prefer_not_say"]
@@ -188,6 +188,11 @@ defmodule Http.UserController do
         |> put_resp_content_type("application/json")
         |> send_resp(400, Poison.encode!(%{error: "invalid_gender", valid_values: valid_genders}))
 
+      not is_binary(verification_code) or String.trim(verification_code) == "" ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(400, Poison.encode!(%{error: "verification_required"}))
+
       true ->
         # Check if user already exists by username or email
         username_check =
@@ -220,155 +225,87 @@ defmodule Http.UserController do
             |> send_resp(503, Poison.encode!(%{error: "persistence_unavailable"}))
 
           true ->
-            password_hash = User.hash_password(password)
-            user = User.new(username, email, password_hash, language, gender, role)
+            # Exige que el email se haya verificado con el código antes de crear
+            # la cuenta. verify_and_consume comprueba código + expiración y elimina
+            # la entrada para que no pueda reutilizarse.
+            case Http.Authentication.SignUpVerification.verify_and_consume(email, verification_code) do
+              :ok ->
+                password_hash = User.hash_password(password)
+                user = User.new(username, email, password_hash, language, gender, role)
 
-            result =
-              try do
-                GenServer.call(:UserPersistence, {:store_user, user})
-              catch
-                :exit, reason ->
-                  Logger.error("signUp failed calling :Persistence: #{inspect(reason)}")
-                  {:persistence_down, reason}
-              end
-
-            case result do
-              :created ->
-                token_result = Http.Authentication.JwtAuthToken.generate(user.username, user.role)
-
-                token =
-                  case token_result do
-                    {:ok, jwt} -> jwt
-                    {:error, err} ->
-                      Logger.error("Failed to generate jwt on signUp: #{inspect(err)}")
-                      nil
+                result =
+                  try do
+                    GenServer.call(:UserPersistence, {:store_user, user})
+                  catch
+                    :exit, reason ->
+                      Logger.error("signUp failed calling :Persistence: #{inspect(reason)}")
+                      {:persistence_down, reason}
                   end
 
+                case result do
+                  :created ->
+                    token_result = Http.Authentication.JwtAuthToken.generate(user.username, user.role)
+
+                    token =
+                      case token_result do
+                        {:ok, jwt} -> jwt
+                        {:error, err} ->
+                          Logger.error("Failed to generate jwt on signUp: #{inspect(err)}")
+                          nil
+                      end
+
+                    conn
+                    |> put_resp_content_type("application/json")
+                    |> send_resp(
+                      201,
+                      Poison.encode!(%{
+                        status: "created",
+                        token: token,
+                        user: %{
+                          id: user._id,
+                          username: user.username,
+                          email: user.email,
+                          language: user.language,
+                          gender: user.gender,
+                          role: user.role
+                        }
+                      })
+                    )
+
+                  :already_exists ->
+                    conn
+                    |> put_resp_content_type("application/json")
+                    |> send_resp(409, Poison.encode!(%{error: "user_already_exists"}))
+
+                  {:persistence_down, _reason} ->
+                    conn
+                    |> put_resp_content_type("application/json")
+                    |> send_resp(503, Poison.encode!(%{error: "persistence_unavailable"}))
+
+                  other ->
+                    Logger.error("signUp unexpected persistence result: #{inspect(other)}")
+
+                    conn
+                    |> put_resp_content_type("application/json")
+                    |> send_resp(500, Poison.encode!(%{error: "user_not_created"}))
+                end
+
+              :invalid_code ->
                 conn
                 |> put_resp_content_type("application/json")
-                |> send_resp(
-                  201,
-                  Poison.encode!(%{
-                    status: "created",
-                    token: token,
-                    user: %{
-                      id: user._id,
-                      username: user.username,
-                      email: user.email,
-                      language: user.language,
-                      gender: user.gender,
-                      role: user.role
-                    }
-                  })
-                )
+                |> send_resp(400, Poison.encode!(%{error: "invalid_verification_code"}))
 
-              :already_exists ->
+              :expired ->
                 conn
                 |> put_resp_content_type("application/json")
-                |> send_resp(409, Poison.encode!(%{error: "user_already_exists"}))
+                |> send_resp(410, Poison.encode!(%{error: "verification_expired"}))
 
-              {:persistence_down, _reason} ->
+              :not_found ->
                 conn
                 |> put_resp_content_type("application/json")
-                |> send_resp(503, Poison.encode!(%{error: "persistence_unavailable"}))
-
-              other ->
-                Logger.error("signUp unexpected persistence result: #{inspect(other)}")
-
-                conn
-                |> put_resp_content_type("application/json")
-                |> send_resp(500, Poison.encode!(%{error: "user_not_created"}))
+                |> send_resp(400, Poison.encode!(%{error: "verification_required"}))
             end
         end
-        # verification_result =
-        #   if is_binary(verification_code) and String.trim(verification_code) != "" do
-        #     Http.Authentication.SignUpVerification.verify_and_consume(email, verification_code)
-        #   else
-        #     Http.Authentication.SignUpVerification.consume_verified(email)
-        #   end
-
-        # case verification_result do
-        #   :ok ->
-        #     password_hash = User.hash_password(password)
-        #     user = User.new(username, email, password_hash, language, gender, role)
-
-        #     result =
-        #       try do
-        #         GenServer.call(:UserPersistence, {:store_user, user})
-        #       catch
-        #         :exit, reason ->
-        #           Logger.error("signUp failed calling :Persistence: #{inspect(reason)}")
-        #           {:persistence_down, reason}
-        #       end
-
-        #     case result do
-        #       :created ->
-        #         token_result = Http.Authentication.JwtAuthToken.generate(user.username, user.role)
-
-        #         token =
-        #           case token_result do
-        #             {:ok, jwt} -> jwt
-        #             {:error, err} ->
-        #               Logger.error("Failed to generate jwt on signUp: #{inspect(err)}")
-        #               nil
-        #           end
-
-        #         conn
-        #         |> put_resp_content_type("application/json")
-        #         |> send_resp(
-        #           201,
-        #           Poison.encode!(%{
-        #             status: "created",
-        #             token: token,
-        #             user: %{
-        #               id: user._id,
-        #               username: user.username,
-        #               email: user.email,
-        #               language: user.language,
-        #               gender: user.gender,
-        #               role: user.role
-        #             }
-        #           })
-        #         )
-
-        #       :already_exists ->
-        #         conn
-        #         |> put_resp_content_type("application/json")
-        #         |> send_resp(409, Poison.encode!(%{error: "user_already_exists"}))
-
-        #       {:persistence_down, _reason} ->
-        #         conn
-        #         |> put_resp_content_type("application/json")
-        #         |> send_resp(503, Poison.encode!(%{error: "persistence_unavailable"}))
-
-        #       other ->
-        #         Logger.error("signUp unexpected persistence result: #{inspect(other)}")
-
-        #         conn
-        #         |> put_resp_content_type("application/json")
-        #         |> send_resp(500, Poison.encode!(%{error: "user_not_created"}))
-        #     end
-
-        #   :invalid_code ->
-        #     conn
-        #     |> put_resp_content_type("application/json")
-        #     |> send_resp(400, Poison.encode!(%{error: "invalid_verification_code"}))
-
-        #   :expired ->
-        #     conn
-        #     |> put_resp_content_type("application/json")
-        #     |> send_resp(410, Poison.encode!(%{error: "verification_expired"}))
-
-        #   :not_verified ->
-        #     conn
-        #     |> put_resp_content_type("application/json")
-        #     |> send_resp(400, Poison.encode!(%{error: "email_not_verified"}))
-
-        #   :not_found ->
-        #     conn
-        #     |> put_resp_content_type("application/json")
-        #     |> send_resp(400, Poison.encode!(%{error: "verification_required"}))
-        # end
     end
   end
 
@@ -529,8 +466,9 @@ defmodule Http.UserController do
     {page, _} = Map.get(query_params, "page", "1") |> Integer.parse()
     {limit, _} = Map.get(query_params, "limit", "10") |> Integer.parse()
     user_id = Map.get(query_params, "userId")
+    search = Map.get(query_params, "search")
 
-    Logger.info("Parsed page: #{page}, limit: #{limit}, userId: #{user_id}")
+    Logger.info("Parsed page: #{page}, limit: #{limit}, userId: #{user_id}, search: #{inspect(search)}")
 
     cond do
       not is_binary(user_id) or String.trim(user_id) == "" ->
@@ -559,7 +497,7 @@ defmodule Http.UserController do
       true ->
         result =
           try do
-            res = GenServer.call(:UserPersistence, {:get_all_users, page, limit}, 30_000)
+            res = GenServer.call(:UserPersistence, {:get_all_users, page, limit, search}, 30_000)
             res
           catch
             :exit, reason ->

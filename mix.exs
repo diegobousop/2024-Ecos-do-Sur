@@ -32,6 +32,7 @@ defmodule Chatbot.MixProject do
       {:cors_plug, "~> 3.0"},
       {:joken, "~> 2.6"},
       {:swoosh, "~> 1.6"},
+      {:gen_smtp, "~> 1.2"},
       {:dotenvy, "~> 0.8.0"}
       # {:dep_from_hexpm, "~> 0.3.0"},
       # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"}
