@@ -11,7 +11,7 @@ defmodule Chatbot.Cache do
   """
 
   # Time in milliseconds by which the Cache must do a clean up of items that are passed the ttl
-  @ttl 120000 # 2 minutes in milliseconds
+  @ttl 24 * 60 * 60 * 1000 # 24 hours in milliseconds
 
   def start_link(_) do
     GenServer.start_link(__MODULE__, nil, name: :Cache)

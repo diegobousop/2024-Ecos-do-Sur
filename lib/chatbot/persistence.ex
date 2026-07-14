@@ -2,9 +2,9 @@ defmodule Chatbot.Persistence do
   use GenServer
   require Logger
 
-  @user "admin"
+  @user "adm"
   @password "admin"
-  @base_url "http://localhost:5984"
+  @base_url "http://127.0.0.1:5984"
   @database "chatbot_db"
 
   def start_link(_) do

@@ -107,6 +107,11 @@ defmodule Chatbot.Leader do
     %{state | last_seen: last_seen, workers_data: updated_workers_data}
   end
 
+  # Ignore any errors  
+  defp do_handle_get_updates(_, state) do
+    state
+  end
+
   # Handles updates from Telegram
   defp do_handle_multiple_updates(updates, last_seen, key, workers_data) do
     {max_update_id, updated_workers_data} = updates
@@ -144,6 +149,25 @@ defmodule Chatbot.Leader do
     stored_worker = Enum.find(workers_data, fn %{user_id: user_id} -> user_id == query["from"]["id"] end)
     do_resolve_update(stored_worker, update, key, workers_data)
   end
+  
+  # Ignores chatbot being blocked
+  defp do_handle_one_update(
+       %{"my_chat_member" => %{"chat" => %{"id" => chat_id}}},
+       _,
+       workers_data
+     ) do
+    case Enum.find(workers_data, fn %{user_id: uid} -> uid == chat_id end) do
+  %{pid: pid} = worker ->
+    GenServer.stop(pid, :silence)
+    List.delete(workers_data, worker)   # remove that whole map from the list
+
+  nil ->
+    workers_data
+end
+  end
+
+  # Ignores unexpected updates
+  defp do_handle_one_update(_, _, workers_data), do: workers_data
 
   # Resolves one update
   defp do_resolve_update(nil, %{"message" => msg, "update_id" => _}, key, workers_data) do

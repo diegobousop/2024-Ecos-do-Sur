@@ -10,7 +10,7 @@ defmodule Chatbot.Application do
     children = [
       # Starts a worker by calling: Chatbot.Worker.start_link(arg)
       # {Chatbot.Worker, arg}
-      {Chatbot.Leader, bot_key: System.get_env("TELEGRAM_BOT_SECRET")},
+      {Chatbot.Leader, bot_key: Application.fetch_env!(:chatbot, :chatbot_key)},
       Chatbot.Cache,
       Chatbot.Persistence,
       :poolboy.child_spec(:worker, poolboy_worker_configuration()),
@@ -27,8 +27,8 @@ defmodule Chatbot.Application do
     [
       name: {:local, :worker},
       worker_module: Chatbot.Worker,
-      size: 5,
-      max_overflow: 2
+      size: 100,
+      max_overflow: 200
     ]
   end
 
@@ -36,8 +36,8 @@ defmodule Chatbot.Application do
     [
       name: {:local, :collector},
       worker_module: Chatbot.InformationCollector,
-      size: 5,
-      max_overflow: 2
+      size: 100,
+      max_overflow: 200
     ]
   end
 end

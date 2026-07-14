@@ -16,7 +16,7 @@ defmodule Chatbot.Worker do
 
   # The process will be terminated after @timeout_interval milliseconds of inactivity.
   # TODO: Set a value for production
-  @timeout_interval 30000 # 30 seconds in milliseconds
+  @timeout_interval 10 * 60 * 1000 # 10 minutes in milliseconds
 
   def start_link(_) do
     GenServer.start_link(__MODULE__, nil)
