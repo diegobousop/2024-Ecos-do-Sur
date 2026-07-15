@@ -9,7 +9,7 @@ Application.ensure_all_started(:poison)
 
 # Configuración
 base_url = "http://localhost:5984"
-database = "chatbot_db"
+database = "chatbot_db_test"
 user = "admin"
 password = "12345"
 

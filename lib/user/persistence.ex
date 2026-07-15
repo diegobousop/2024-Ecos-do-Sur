@@ -5,7 +5,7 @@ defmodule User.Persistence do
   @user "admin"
   @password "12345"
   @base_url "http://127.0.0.1:5984"
-  @database "chatbot_db"
+  @database "chatbot_db_test"
 
   def start_link(_) do
     http_client = Application.get_env(:chatbot, :http_client, Http.HttpClientProd)
