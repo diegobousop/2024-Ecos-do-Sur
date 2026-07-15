@@ -5,16 +5,33 @@ defmodule Chatbot.MixProject do
     [
       app: :chatbot,
       version: "0.1.0",
-      elixir: "~> 1.15",
+      elixir: "~> 1.14",
       start_permanent: Mix.env() == :prod,
-      deps: deps()
+      deps: deps(),
+      releases: [
+        first_release: [
+          include_executables_for: [:unix],
+          applications: [runtime_tools: :permanent],
+          cookie: "chatbot_first_cookie"
+        ],
+        second_release: [
+          include_executables_for: [:unix],
+          applications: [runtime_tools: :permanent],
+          cookie: "chatbot_second_cookie"
+        ],
+        third_release: [
+          include_executables_for: [:unix],
+          applications: [runtime_tools: :permanent],
+          cookie: "chatbot_third_cookie"
+        ]
+      ]
     ]
   end
 
   # Run "mix help compile.app" to learn about applications.
   def application do
     [
-      extra_applications: [:logger, :observer, :wx, :runtime_tools],
+      extra_applications: [:logger, :runtime_tools],
       mod: {Chatbot.Application, []}
     ]
   end

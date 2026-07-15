@@ -33,8 +33,8 @@ defmodule Chatbot.Application do
     [
       name: {:local, :worker},
       worker_module: Chatbot.Worker,
-      size: 5,
-      max_overflow: 2
+      size: 100,
+      max_overflow: 200
     ]
   end
 
@@ -42,8 +42,8 @@ defmodule Chatbot.Application do
     [
       name: {:local, :collector},
       worker_module: Chatbot.InformationCollector,
-      size: 5,
-      max_overflow: 2
+      size: 100,
+      max_overflow: 200
     ]
   end
 end

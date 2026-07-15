@@ -11,7 +11,7 @@ defmodule Chatbot.InformationCollector do
   If the user enters and state of inactivity, the already filled information is missed.
   """
 
-  @timeout_interval 30000
+  @timeout_interval 10 * 60 * 1000 # 10 minutes in milliseconds
 
   def start_link(_) do
     GenServer.start_link(__MODULE__, nil)
