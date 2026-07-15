@@ -50,7 +50,8 @@ defmodule Chatbot.MixProject do
       {:joken, "~> 2.6"},
       {:swoosh, "~> 1.6"},
       {:gen_smtp, "~> 1.2"},
-      {:dotenvy, "~> 0.8.0"}
+      {:dotenvy, "~> 0.8.0"},
+      {:jose, "1.11.10", override: true}
       # {:dep_from_hexpm, "~> 0.3.0"},
       # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"}
     ]

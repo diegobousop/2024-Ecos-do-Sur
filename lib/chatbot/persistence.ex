@@ -2,8 +2,8 @@ defmodule Chatbot.Persistence do
   use GenServer
   require Logger
 
-  @user "admin"
-  @password "12345"
+  @user "adm"
+  @password "admin"
   @base_url "http://127.0.0.1:5984"
   @database "chatbot_db_test"
 
