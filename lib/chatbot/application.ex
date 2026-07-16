@@ -14,7 +14,7 @@ defmodule Chatbot.Application do
       # {Chatbot.Worker, arg}
       Http.Buffer,
       Http.Authentication.SignUpVerification,
-      {Plug.Cowboy, scheme: :http, plug: Http.Router, options: [port: 4000]},
+      {Plug.Cowboy, scheme: :http, plug: Http.Router, options: [port: 4000, ip: {127, 0, 0, 1}]},
       {Chatbot.Leader, bot_key: bot_key},
       Chatbot.Cache,
       Chatbot.Persistence,
