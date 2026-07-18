@@ -14,6 +14,39 @@ defmodule Http.NotificationController do
   @expo_endpoint "https://exp.host/--/api/v2/push/send"
 
   def send_notification(conn) do
+    with {:ok, token} <- bearer_token(conn),
+         {:ok, claims} <- Http.Authentication.JwtAuthToken.verify(token),
+         :ok <- require_admin(claims) do
+      do_send_notification(conn)
+    else
+      {:error, :missing_token} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(401, Poison.encode!(%{error: "missing_token"}))
+
+      {:error, :forbidden} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(403, Poison.encode!(%{error: "admin_required"}))
+
+      {:error, _reason} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(401, Poison.encode!(%{error: "invalid_token"}))
+    end
+  end
+
+  defp bearer_token(conn) do
+    case get_req_header(conn, "authorization") do
+      ["Bearer " <> token] when byte_size(token) > 0 -> {:ok, token}
+      _ -> {:error, :missing_token}
+    end
+  end
+
+  defp require_admin(%{"role" => "admin"}), do: :ok
+  defp require_admin(_claims), do: {:error, :forbidden}
+
+  defp do_send_notification(conn) do
     case conn.body_params do
       %{"to" => to, "title" => title, "body" => body} = params when is_binary(to) and is_binary(title) and is_binary(body) ->
         # Accept `links` at the top level or inside `data`, normalized to a list

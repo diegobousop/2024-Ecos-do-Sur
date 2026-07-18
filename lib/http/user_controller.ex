@@ -462,25 +462,21 @@ defmodule Http.UserController do
   def get_all_users(conn) do
     Logger.info("HTTP get all users request")
 
+    case require_admin_token(conn) do
+      :ok -> do_get_all_users(conn)
+      {:error, resp_conn} -> resp_conn
+    end
+  end
+
+  defp do_get_all_users(conn) do
     query_params = Plug.Conn.fetch_query_params(conn).query_params
     {page, _} = Map.get(query_params, "page", "1") |> Integer.parse()
     {limit, _} = Map.get(query_params, "limit", "10") |> Integer.parse()
-    user_id = Map.get(query_params, "userId")
     search = Map.get(query_params, "search")
 
-    Logger.info("Parsed page: #{page}, limit: #{limit}, userId: #{user_id}, search: #{inspect(search)}")
+    Logger.info("Parsed page: #{page}, limit: #{limit}, search: #{inspect(search)}")
 
     cond do
-      not is_binary(user_id) or String.trim(user_id) == "" ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(400, Poison.encode!(%{error: "user_id_required"}))
-
-      not is_admin?(user_id) ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(403, Poison.encode!(%{error: "forbidden", message: "Admin access required"}))
-
       page < 1 ->
         conn
         |> put_resp_content_type("application/json")
@@ -695,24 +691,20 @@ defmodule Http.UserController do
   def user_stats(conn) do
     Logger.info("HTTP user stats request")
 
+    case require_admin_token(conn) do
+      :ok -> do_user_stats(conn)
+      {:error, resp_conn} -> resp_conn
+    end
+  end
+
+  defp do_user_stats(conn) do
     query_params = Plug.Conn.fetch_query_params(conn).query_params
-    user_id = Map.get(query_params, "userId")
     time_range = Map.get(query_params, "timeRange", "7days")
 
     # Validar time_range
     valid_ranges = ["7days", "30days", "365days"]
 
     cond do
-      not is_binary(user_id) or String.trim(user_id) == "" ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(400, Poison.encode!(%{error: "user_id_required"}))
-
-      not is_admin?(user_id) ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(403, Poison.encode!(%{error: "forbidden", message: "Admin access required"}))
-
       time_range not in valid_ranges ->
         conn
         |> put_resp_content_type("application/json")
@@ -876,23 +868,40 @@ defmodule Http.UserController do
 
   # Private helper functions
 
-  defp is_admin?(user_id) when is_binary(user_id) do
-    try do
-      case GenServer.call(:UserPersistence, {:check_user_exists, user_id}) do
-        {:exists, user_map} when is_map(user_map) ->
-          Map.get(user_map, "role") == "admin"
+  # Verifica el JWT del header Authorization y exige rol admin en los claims.
+  # Devuelve :ok o {:error, conn} con la respuesta 401/403 ya construida.
+  defp require_admin_token(conn) do
+    with {:ok, token} <- bearer_token(conn),
+         {:ok, claims} <- Http.Authentication.JwtAuthToken.verify(token),
+         %{"role" => "admin"} <- claims do
+      :ok
+    else
+      {:error, :missing_token} ->
+        {:error,
+         conn
+         |> put_resp_content_type("application/json")
+         |> send_resp(401, Poison.encode!(%{error: "missing_token"}))}
 
-        _ ->
-          false
-      end
-    catch
-      :exit, reason ->
-        Logger.error("is_admin? failed calling :UserPersistence: #{inspect(reason)}")
-        false
+      %{} ->
+        {:error,
+         conn
+         |> put_resp_content_type("application/json")
+         |> send_resp(403, Poison.encode!(%{error: "forbidden", message: "Admin access required"}))}
+
+      _ ->
+        {:error,
+         conn
+         |> put_resp_content_type("application/json")
+         |> send_resp(401, Poison.encode!(%{error: "invalid_token"}))}
     end
   end
 
-  defp is_admin?(_), do: false
+  defp bearer_token(conn) do
+    case Plug.Conn.get_req_header(conn, "authorization") do
+      ["Bearer " <> token] when byte_size(token) > 0 -> {:ok, token}
+      _ -> {:error, :missing_token}
+    end
+  end
 
   defp valid_email?(email) when is_binary(email) do
     Regex.match?(~r/^[^@\s]+@[^@\s]+\.[^@\s]+$/, String.trim(email))

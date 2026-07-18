@@ -31,6 +31,11 @@ defmodule Http.Router do
     FeedController.search(conn)
   end
 
+  # Eliminar una noticia del feed (solo admins)
+  delete "/api/feed/:id" do
+    FeedController.delete(conn, id)
+  end
+
   # Endpoint for callback queries
   post "/api/callback" do
     ChatController.handle_callback(conn)

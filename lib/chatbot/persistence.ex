@@ -27,6 +27,7 @@ defmodule Chatbot.Persistence do
   def create_notification(notification), do: GenServer.call(:Persistence, {:create_notification, notification})
   def get_notifications(limit \\ 50, offset \\ 0), do: GenServer.call(:Persistence, {:get_notifications, limit, offset})
   def search_notifications(query, limit \\ 50, offset \\ 0), do: GenServer.call(:Persistence, {:search_notifications, query, limit, offset})
+  def delete_notification(notification_id), do: GenServer.call(:Persistence, {:delete_notification, notification_id})
 
   @impl true
   def init(http_client) do
@@ -96,6 +97,12 @@ defmodule Chatbot.Persistence do
     {:reply, res, http_client}
   end
 
+  @impl true
+  def handle_call({:delete_notification, notification_id}, _from, http_client) when is_binary(notification_id) do
+    res = do_delete_notification(http_client, notification_id)
+    {:reply, res, http_client}
+  end
+
   # Creates the database. If it already exists nothing will happen.
   defp do_create_database(http_client) do
     url = "#{@base_url}/#{@database}"
@@ -151,6 +158,35 @@ defmodule Chatbot.Persistence do
           {:ok, %HTTPoison.Response{status_code: 200}} -> :ok
           {:ok, %HTTPoison.Response{status_code: 404}} -> :not_found
           _ -> :error
+        end
+
+      {:ok, %HTTPoison.Response{status_code: 404}} ->
+        :not_found
+
+      _ ->
+        :error
+    end
+  end
+
+  # Borra una noticia por id. Comprueba que el documento sea de tipo
+  # "notification" para que este camino no pueda borrar usuarios u otros docs.
+  defp do_delete_notification(http_client, doc_id) do
+    url = "#{@base_url}/#{@database}/#{doc_id}"
+
+    case send_request(http_client, :get, url) do
+      {:ok, %HTTPoison.Response{status_code: 200, body: body}} when is_binary(body) ->
+        doc = Poison.decode!(body)
+
+        if doc["type"] == "notification" do
+          delete_url = "#{url}?rev=#{doc["_rev"]}"
+
+          case http_client.delete(delete_url, ["Authorization": "Basic " <> Base.encode64("#{@user}:#{@password}")]) do
+            {:ok, %HTTPoison.Response{status_code: 200}} -> :ok
+            {:ok, %HTTPoison.Response{status_code: 404}} -> :not_found
+            _ -> :error
+          end
+        else
+          :not_found
         end
 
       {:ok, %HTTPoison.Response{status_code: 404}} ->

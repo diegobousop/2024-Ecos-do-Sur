@@ -62,6 +62,62 @@ defmodule Http.FeedController do
     end
   end
 
+  @doc """
+  DELETE /api/feed/:id
+  Elimina una noticia. Solo disponible para usuarios con rol admin: la ruta
+  lleva un segmento dinámico, así que no puede pasar por JwtAuthPlug (que
+  compara rutas exactas) y el token se verifica aquí.
+  """
+  def delete(conn, notification_id) do
+    with {:ok, token} <- bearer_token(conn),
+         {:ok, claims} <- Http.Authentication.JwtAuthToken.verify(token),
+         :ok <- require_admin(claims) do
+      case Chatbot.Persistence.delete_notification(notification_id) do
+        :ok ->
+          conn
+          |> put_resp_content_type("application/json")
+          |> send_resp(200, Poison.encode!(%{status: "ok"}))
+
+        :not_found ->
+          conn
+          |> put_resp_content_type("application/json")
+          |> send_resp(404, Poison.encode!(%{error: "notification_not_found"}))
+
+        other ->
+          Logger.error("Notification delete failed: #{inspect(other)}")
+
+          conn
+          |> put_resp_content_type("application/json")
+          |> send_resp(500, Poison.encode!(%{error: "delete_failed"}))
+      end
+    else
+      {:error, :missing_token} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(401, Poison.encode!(%{error: "missing_token"}))
+
+      {:error, :forbidden} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(403, Poison.encode!(%{error: "admin_required"}))
+
+      {:error, _reason} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(401, Poison.encode!(%{error: "invalid_token"}))
+    end
+  end
+
+  defp bearer_token(conn) do
+    case get_req_header(conn, "authorization") do
+      ["Bearer " <> token] when byte_size(token) > 0 -> {:ok, token}
+      _ -> {:error, :missing_token}
+    end
+  end
+
+  defp require_admin(%{"role" => "admin"}), do: :ok
+  defp require_admin(_claims), do: {:error, :forbidden}
+
   defp parse_limit(nil), do: @default_limit
 
   defp parse_limit(limit) when is_binary(limit) do
