@@ -10,4 +10,8 @@ defmodule Http.HttpClientProd do
     HTTPoison.get(url, header)
   end
 
+  def delete(url, header) do
+    HTTPoison.delete(url, header)
+  end
+
 end

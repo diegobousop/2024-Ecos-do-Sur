@@ -60,4 +60,8 @@ defmodule Http.HttpClientMock do
     end
   end
 
+  def delete(_url, _headers) do
+    {:ok, %HTTPoison.Response{status_code: 200}}
+  end
+
 end

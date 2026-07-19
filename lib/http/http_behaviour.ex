@@ -14,4 +14,8 @@ defmodule Http.HttpBehaviour do
   @callback get(url :: binary(), header :: headers()) ::
   {:ok, HTTPoison.Response.t() | HTTPoison.AsyncResponse.t() | HTTPoison.MaybeRedirect.t()}
   | {:error, HTTPoison.Error.t()}
+
+  @callback delete(url :: binary(), header :: headers()) ::
+  {:ok, HTTPoison.Response.t() | HTTPoison.AsyncResponse.t() | HTTPoison.MaybeRedirect.t()}
+  | {:error, HTTPoison.Error.t()}
 end
